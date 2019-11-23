@@ -31,9 +31,11 @@ public:
     QAction *actionSave;
     QAction *actionPrevious;
     QAction *actionNext;
+    QAction *actionUndo;
     QWidget *centralWidget;
     QMenuBar *menuBar;
     QMenu *menuFile;
+    QMenu *menuEdit;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
 
@@ -52,6 +54,8 @@ public:
         actionPrevious->setObjectName(QStringLiteral("actionPrevious"));
         actionNext = new QAction(MainWindowClass);
         actionNext->setObjectName(QStringLiteral("actionNext"));
+        actionUndo = new QAction(MainWindowClass);
+        actionUndo->setObjectName(QStringLiteral("actionUndo"));
         centralWidget = new QWidget(MainWindowClass);
         centralWidget->setObjectName(QStringLiteral("centralWidget"));
         MainWindowClass->setCentralWidget(centralWidget);
@@ -60,6 +64,8 @@ public:
         menuBar->setGeometry(QRect(0, 0, 600, 21));
         menuFile = new QMenu(menuBar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
+        menuEdit = new QMenu(menuBar);
+        menuEdit->setObjectName(QStringLiteral("menuEdit"));
         MainWindowClass->setMenuBar(menuBar);
         mainToolBar = new QToolBar(MainWindowClass);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
@@ -69,6 +75,7 @@ public:
         MainWindowClass->setStatusBar(statusBar);
 
         menuBar->addAction(menuFile->menuAction());
+        menuBar->addAction(menuEdit->menuAction());
         menuFile->addAction(actionOpen);
         menuFile->addAction(actionSave);
         menuFile->addSeparator();
@@ -76,6 +83,7 @@ public:
         menuFile->addAction(actionNext);
         menuFile->addSeparator();
         menuFile->addAction(actionExit);
+        menuEdit->addAction(actionUndo);
 
         retranslateUi(MainWindowClass);
 
@@ -94,7 +102,10 @@ public:
         actionPrevious->setShortcut(QApplication::translate("MainWindowClass", "Left", Q_NULLPTR));
         actionNext->setText(QApplication::translate("MainWindowClass", "Next", Q_NULLPTR));
         actionNext->setShortcut(QApplication::translate("MainWindowClass", "Right", Q_NULLPTR));
+        actionUndo->setText(QApplication::translate("MainWindowClass", "Undo", Q_NULLPTR));
+        actionUndo->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+Z", Q_NULLPTR));
         menuFile->setTitle(QApplication::translate("MainWindowClass", "File", Q_NULLPTR));
+        menuEdit->setTitle(QApplication::translate("MainWindowClass", "Edit", Q_NULLPTR));
     } // retranslateUi
 
 };

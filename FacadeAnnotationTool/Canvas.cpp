@@ -12,11 +12,7 @@ Canvas::Canvas(QWidget *parent) : QWidget(parent) {
 	ctrlPressed = false;
 	shiftPressed = false;
 
-	params.resize(4);
-	params[0] = 0.2;
-	params[1] = 0.2;
-	params[2] = 0.8;
-	params[3] = 0.8;
+	line_direction = LINE_HORIZONTAL;
 }
 
 void Canvas::paintEvent(QPaintEvent *event) {
@@ -25,20 +21,25 @@ void Canvas::paintEvent(QPaintEvent *event) {
 		painter.drawImage(0, 0, image);
 
 		painter.setPen(QPen(QColor(255, 255, 0), 3));
-		painter.drawRect(params[0] * image.width(), params[1] * image.height(), (params[2] - params[0]) * image.width(), (params[3] - params[1]) * image.height());
+		for (auto pos : params) {
+			if (line_direction == LINE_HORIZONTAL) {
+				painter.drawLine(0, pos * image.height(), image.width(), pos * image.height());
+			}
+			else {
+				painter.drawLine(pos * image.width(), 0, pos * image.width(), 0);
+			}
+		}
 	}
 }
 
 void Canvas::mousePressEvent(QMouseEvent* e) {
-	if (click_cnt == 0) {
-		params[0] = (float)e->x() / image.width();
-		params[1] = (float)e->y() / image.height();
-		click_cnt++;
+	if (line_direction == LINE_HORIZONTAL) {
+		float pos = (float)e->y() / image.height();
+		params.push_back(pos);
 	}
 	else {
-		params[2] = (float)e->x() / image.width();
-		params[3] = (float)e->y() / image.height();
-		click_cnt = 0;
+		float pos = (float)e->x() / image.width();
+		params.push_back(pos);
 	}
 
 	update();
@@ -55,9 +56,16 @@ void Canvas::loadImage(const QString& filename) {
 	orig_image = QImage(filename);
 	float scale = std::min((float)width() / orig_image.width(), (float)height() / orig_image.height());
 	image = orig_image.scaled(orig_image.width() * scale, orig_image.height() * scale);
-	click_cnt = 0;
+	params.clear();
 
 	update();
+}
+
+void Canvas::undo() {
+	if (params.size() > 0) {
+		params.pop_back();
+		update();
+	}
 }
 
 void Canvas::keyPressEvent(QKeyEvent* e) {

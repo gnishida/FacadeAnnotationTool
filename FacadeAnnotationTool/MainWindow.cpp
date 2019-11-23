@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include <QDir>
 #include <QMessageBox>
+#include <QTextStream>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 	ui.setupUi(this);
@@ -13,17 +14,49 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 	connect(ui.actionOpen, SIGNAL(triggered()), this, SLOT(onOpen()));
 	connect(ui.actionNext, SIGNAL(triggered()), this, SLOT(onNext()));
 	connect(ui.actionPrevious, SIGNAL(triggered()), this, SLOT(onPrevious()));
+	connect(ui.actionUndo, SIGNAL(triggered()), this, SLOT(onUndo()));
 	connect(ui.actionExit, SIGNAL(triggered()), this, SLOT(close()));
+
+	// load parameter file
+	loadParams();
 }
 
-void MainWindow::loadImage(const QString& filename) {
-	canvas->loadImage(filename);
-	/*
-	if (all_params.contains(filename)) {
-		canvas->setParams(all_params[filename]);
+void MainWindow::loadImage(const QFileInfo& fileinfo) {
+	canvas->loadImage(fileinfo.absoluteFilePath());
+	if (all_params.contains(fileinfo.fileName())) {
+		canvas->setParams(all_params[fileinfo.fileName()]);
 	}
-	*/
-	setWindowTitle("Window Boundary Annotation - " + filename);
+	setWindowTitle("Window Boundary Annotation - " + fileinfo.fileName());
+}
+
+void MainWindow::loadParams() {
+	QFile file("facade_annotation.txt");
+	if (file.exists()) {
+		file.open(QIODevice::ReadOnly);
+		QTextStream in(&file);
+		while (!in.atEnd()) {
+			QStringList list = in.readLine().split(",");
+
+			for (int i = 1; i < list.size(); ++i) {
+				all_params[list[0]].push_back(list[i].toFloat());
+			}
+		}
+		file.close();
+	}
+}
+
+void MainWindow::saveParams() {
+	QFile file("facade_annotation.txt");
+	file.open(QIODevice::WriteOnly);
+	QTextStream out(&file);
+	for (auto it = all_params.begin(); it != all_params.end(); ++it) {
+		out << it.key();
+		for (auto param : it.value()) {
+			out << "," << param;
+		}
+		out << "\n";
+	}
+	file.close();
 }
 
 void MainWindow::onOpen() {
@@ -48,21 +81,21 @@ void MainWindow::onOpen() {
 	for (int i = 0; i < fileInfoList.size(); ++i) {
 		if (fileInfoList[i].fileName() == filename) {
 			curIndex = i;
-			loadImage(fileInfoList[curIndex].absoluteFilePath());
+			loadImage(fileInfoList[curIndex]);
 			break;
 		}
 	}
 }
 
 void MainWindow::onSave() {
-	//all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	//saveParams();
+	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
+	saveParams();
 }
 
 void MainWindow::onNext() {
 	// save parameters
-	//all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	//saveParams();
+	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
+	saveParams();
 
 	if (curIndex >= fileInfoList.size() - 1) {
 		QMessageBox msg;
@@ -71,14 +104,14 @@ void MainWindow::onNext() {
 	}
 	else {
 		curIndex++;
-		loadImage(fileInfoList[curIndex].absoluteFilePath());
+		loadImage(fileInfoList[curIndex]);
 	}
 }
 
 void MainWindow::onPrevious() {
 	// save parameters
-	//all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	//saveParams();
+	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
+	saveParams();
 
 	if (curIndex <= 0) {
 		QMessageBox msg;
@@ -87,6 +120,10 @@ void MainWindow::onPrevious() {
 	}
 	else {
 		curIndex--;
-		loadImage(fileInfoList[curIndex].absoluteFilePath());
+		loadImage(fileInfoList[curIndex]);
 	}
+}
+
+void MainWindow::onUndo() {
+	canvas->undo();
 }
