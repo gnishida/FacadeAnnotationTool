@@ -13,7 +13,7 @@ import resnet
 
 NUM_GPUS = 1
 BS_PER_GPU = 64
-NUM_EPOCHS = 10
+NUM_EPOCHS = 60
 
 HEIGHT = 96
 WIDTH = 96
@@ -71,6 +71,22 @@ def load_annotation(file_path):
 	return params
 
 
+def build_mode(int_shape, num_params):
+	model = keras.Sequential([
+		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
+		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
+		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
+		tf.keras.layers.Dense(num_params, name='fc3')
+	])
+
+	optimizer = tf.keras.optimizers.RMSprop(0.001)
+
+	model.compile(loss='mse',
+		optimizer=optimizer,
+		metrics=['mae', 'mse'])
+	return model
+  
+
 # Load parameters
 params = load_annotation("facade_annotation.txt")
 
@@ -102,15 +118,7 @@ print(testX.shape)
 
 
 # Build model
-input_shape = (HEIGHT, WIDTH, NUM_CHANNELS)
-img_input = tf.keras.layers.Input(shape=input_shape)
-#opt = keras.optimizers.SGD(learning_rate=0.1, momentum=0.9)
-opt = tf.keras.optimizers.RMSprop(0.001)
-model = resnet.resnet56(img_input=img_input, classes=NUM_CLASSES)
-model.compile(
-	optimizer=opt,
-	loss='mse',
-	metrics=['mae', 'mse'])
+model = build_mode((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES)
 
 
 # Setup for Tensorboard
@@ -131,10 +139,19 @@ model.fit(trainX, trainY,
 	callbacks=[tensorboard_callback, lr_schedule_callback])
 		  
 		  
-# Test
+# Evaluation
 model.evaluate(trainX, trainY)
+
+# Prediction
 predictedY = model.predict(X).flatten()
-print(predictedY)
+
+# Write the prediction to a file
+file = open("prediction.txt", "w")
+for i in range(len(path_list)):
+	file_name = os.path.basename(path_list[i])
+	#print("{}: {}".format(file_name, predictedY[i]))
+	file.write("{},{}\n".format(file_name, predictedY[i]))
+file.close()
 
 model.save('model.h5')
 
