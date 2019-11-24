@@ -76,7 +76,7 @@ params = load_annotation("facade_annotation.txt")
 
 
 # Load images
-path_list = glob.glob("D:/Users/Gen Nishida/Documents/facade/ECP/images/*.jpg")
+path_list = glob.glob("../ECP/images/*.jpg")
 X = numpy.zeros((len(path_list), WIDTH, HEIGHT, 3), dtype=float)
 Y = numpy.zeros((len(path_list)), dtype=float)
 i = 0
