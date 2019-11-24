@@ -12,11 +12,11 @@ import resnet
 
 
 NUM_GPUS = 1
-BS_PER_GPU = 16
+BS_PER_GPU = 32
 NUM_EPOCHS = 60
 
-HEIGHT = 32
-WIDTH = 32
+HEIGHT = 96
+WIDTH = 96
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
 
@@ -86,10 +86,16 @@ for file_path in path_list:
 	Y[i] = max(params[file_name])
 	i += 1
 
+
+# Create train/test dataset
 X = tf.constant(X)
 Y = tf.constant(Y)
-print(X.shape)
-print(Y.shape)
+num_train = int(len(Y) * 0.8)
+num_test = len(Y) - num_train
+trainX, testX = tf.split(X, [num_train, num_test], 0)
+trainY, testY = tf.split(Y, [num_train, num_test], 0)
+print(trainX.shape)
+print(testX.shape)
 
 
 # Build model
@@ -115,17 +121,17 @@ tensorboard_callback = TensorBoard(
 
 # Training model
 lr_schedule_callback = LearningRateScheduler(schedule)
-model.fit(X, Y,
+model.fit(trainX, trainY,
 	epochs=NUM_EPOCHS,
 	validation_split = 0.2,
 	callbacks=[tensorboard_callback, lr_schedule_callback])
 		  
 		  
 # Test
-model.evaluate(test_dataset)
+model.evaluate(testX, testY)
 
 model.save('model.h5')
 
 new_model = keras.models.load_model('model.h5')
  
-new_model.evaluate(test_dataset)
+new_model.evaluate(testX, testY)
