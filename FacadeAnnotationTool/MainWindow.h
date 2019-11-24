@@ -15,12 +15,14 @@ private:
 	QFileInfoList fileInfoList;
 	int curIndex;
 	QMap<QString, std::vector<float>> all_params;
+	QMap<QString, std::vector<float>> all_predicted_params;
 
 public:
     MainWindow(QWidget *parent = Q_NULLPTR); 
 
 	void loadImage(const QFileInfo& fileinfo);
 	void loadParams();
+	void loadPredictedParams();
 	void saveParams();
 
 public slots:

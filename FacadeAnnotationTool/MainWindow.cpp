@@ -19,12 +19,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
 	// load parameter file
 	loadParams();
+	loadPredictedParams();
 }
 
 void MainWindow::loadImage(const QFileInfo& fileinfo) {
 	canvas->loadImage(fileinfo.absoluteFilePath());
 	if (all_params.contains(fileinfo.fileName())) {
 		canvas->setParams(all_params[fileinfo.fileName()]);
+	}
+	if (all_predicted_params.contains(fileinfo.fileName())) {
+		canvas->setPredictedParams(all_predicted_params[fileinfo.fileName()]);
 	}
 	setWindowTitle("Window Boundary Annotation - " + fileinfo.fileName());
 }
@@ -39,6 +43,22 @@ void MainWindow::loadParams() {
 
 			for (int i = 1; i < list.size(); ++i) {
 				all_params[list[0]].push_back(list[i].toFloat());
+			}
+		}
+		file.close();
+	}
+}
+
+void MainWindow::loadPredictedParams() {
+	QFile file("prediction.txt");
+	if (file.exists()) {
+		file.open(QIODevice::ReadOnly);
+		QTextStream in(&file);
+		while (!in.atEnd()) {
+			QStringList list = in.readLine().split(",");
+
+			for (int i = 1; i < list.size(); ++i) {
+				all_predicted_params[list[0]].push_back(list[i].toFloat());
 			}
 		}
 		file.close();

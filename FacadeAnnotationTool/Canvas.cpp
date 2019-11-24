@@ -29,6 +29,16 @@ void Canvas::paintEvent(QPaintEvent *event) {
 				painter.drawLine(pos * image.width(), 0, pos * image.width(), 0);
 			}
 		}
+
+		painter.setPen(QPen(QColor(0, 0, 255), 3));
+		for (auto pos : predicted_params) {
+			if (line_direction == LINE_HORIZONTAL) {
+				painter.drawLine(0, pos * image.height(), image.width(), pos * image.height());
+			}
+			else {
+				painter.drawLine(pos * image.width(), 0, pos * image.width(), 0);
+			}
+		}
 	}
 }
 
