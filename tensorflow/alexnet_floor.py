@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
 
 NUM_GPUS = 1
 BS_PER_GPU = 64
-NUM_EPOCHS = 600
+NUM_EPOCHS = 200
 
 HEIGHT = 224
 WIDTH = 224
@@ -150,7 +150,7 @@ model.fit(trainX, trainY,
 		  
 		  
 # Evaluation
-model.evaluate(trainX, trainY)
+model.evaluate(testX, testY)
 
 # Prediction
 predictedY = model.predict(X).flatten()

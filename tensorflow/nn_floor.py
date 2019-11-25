@@ -140,7 +140,7 @@ model.fit(trainX, trainY,
 		  
 		  
 # Evaluation
-model.evaluate(trainX, trainY)
+model.evaluate(testX, testY)
 
 # Prediction
 predictedY = model.predict(X).flatten()

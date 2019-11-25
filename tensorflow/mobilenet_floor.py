@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
 
 NUM_GPUS = 1
 BS_PER_GPU = 64
-NUM_EPOCHS = 600
+NUM_EPOCHS = 200
 
 HEIGHT = 160
 WIDTH = 160
@@ -116,7 +116,8 @@ print(testX.shape)
 
 # Build model
 model = build_mode((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES)
-
+model.summary()
+quit()
 
 # Setup for Tensorboard
 log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -137,7 +138,7 @@ model.fit(trainX, trainY,
 		  
 		  
 # Evaluation
-model.evaluate(trainX, trainY)
+model.evaluate(testX, testY)
 
 # Prediction
 predictedY = model.predict(X).flatten()
