@@ -8,8 +8,6 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
 
-import resnet
-
 
 NUM_GPUS = 1
 BS_PER_GPU = 64
@@ -70,29 +68,24 @@ def load_annotation(file_path):
 		
 	return params
 
-
-def build_mode(int_shape, num_params):
+		
+def build_mode(input_shape, num_params):
+	net_data = numpy.load(open("bvlc_alexnet.npy", "rb"), allow_pickle=True, encoding="latin1").item()
+	
 	model = keras.Sequential([
-		tf.keras.layers.Conv2D(96, kernel_size=(11, 11), strides=(4, 4), padding='valid', activation='relu', input_shape=int_shape),
-		tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid'),
+		tf.keras.layers.Conv2D(96, kernel_size=(11, 11), weights=net_data["conv1"], strides=(4, 4), padding='valid', activation='relu', input_shape=input_shape, name='conv1'),
 		tf.keras.layers.BatchNormalization(),
-		tf.keras.layers.Conv2D(256, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation='relu'),
-		tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid'),
+		tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid', name='pool1'),
+		tf.keras.layers.Conv2D(256, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation='relu', name='conv2'),
 		tf.keras.layers.BatchNormalization(),
-		tf.keras.layers.Conv2D(384, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu'),
-		tf.keras.layers.BatchNormalization(),
-		tf.keras.layers.Conv2D(384, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu'),
-		tf.keras.layers.BatchNormalization(),
-		tf.keras.layers.Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu'),
-		tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid'),
-		tf.keras.layers.BatchNormalization(),
+		tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid', name='pool2'),
+		tf.keras.layers.Conv2D(384, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu', name='conv3'),
+		tf.keras.layers.Conv2D(384, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu', name='conv4'),
+		tf.keras.layers.Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation='relu', name='conv5'),
+		tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='valid', name='pool5'),
 		tf.keras.layers.Flatten(),
-		tf.keras.layers.Dense(4096, activation='relu'),
-		tf.keras.layers.Dropout(0.4),
-		tf.keras.layers.BatchNormalization(),
-		tf.keras.layers.Dense(4096, activation='relu'),
-		tf.keras.layers.Dropout(0.4),
-		tf.keras.layers.BatchNormalization(),
+		tf.keras.layers.Dense(4096, activation='relu', name='fc6'),
+		tf.keras.layers.Dense(4096, activation='relu', name='fc7'),
 		tf.keras.layers.Dense(num_params)
 	])
 
