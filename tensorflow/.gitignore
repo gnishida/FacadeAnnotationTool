@@ -1,4 +1,3 @@
 logs/
-out/
-!out/model.h5
-*.h5
+out/*
+!out/*.h5

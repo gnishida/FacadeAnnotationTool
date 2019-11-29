@@ -19,11 +19,18 @@ NUM_CLASSES = 1
 
 
 def augmentation(x):
+	# crop
 	x = tf.image.resize_with_crop_or_pad(x, HEIGHT + 8, WIDTH + 8)
 	x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
+	
+	# flip
 	x = tf.image.random_flip_left_right(x)
+	
+	
+	# rotate
 	angle = random.uniform(-0.5, 0.5)
 	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+	
 	return x
 	
 
@@ -136,7 +143,7 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 
 
 	# Save the model
-	model.save("{}/model.h5".format(output_dir))
+	model.save("{}/nn_model.h5".format(output_dir))
 
 
 def test(input_dir, output_dir):
@@ -150,7 +157,7 @@ def test(input_dir, output_dir):
 
 		  
 	# Load the model
-	model = tf.keras.models.load_model("{}/model.h5".format(output_dir))
+	model = tf.keras.models.load_model("{}/nn_model.h5".format(output_dir))
 	
 	
 	# Evaluation
