@@ -1,3 +1,3 @@
 logs/
-prediction_img/
+out/
 *.h5

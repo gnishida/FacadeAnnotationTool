@@ -9,8 +9,7 @@ import argparse
 from sklearn.utils import shuffle
 
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
+from tensorflow.keras.callbacks import TensorBoard
 
 
 HEIGHT = 96
@@ -90,7 +89,7 @@ def load_annotation(file_path):
 
 
 def build_model(int_shape, num_params, learning_rate):
-	model = keras.Sequential([
+	model = tf.keras.Sequential([
 		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
 		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
 		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
@@ -152,7 +151,7 @@ def test(input_dir, output_dir):
 
 		  
 	# Load the model
-	model = keras.models.load_model("{}/model.h5".format(output_dir))
+	model = tf.keras.models.load_model("{}/model.h5".format(output_dir))
 	
 	
 	# Evaluation
@@ -180,13 +179,6 @@ def test(input_dir, output_dir):
 		imgdraw.line([(0, h * predictedY[i]), (w, h * predictedY[i])], fill = "yellow", width = 3)
 		img.save("{}/{}".format(output_dir, file_name))
 
-
-	# Save the model
-	model.save('model.h5')
-
-
-	# Load the model
-	#new_model = keras.models.load_model('model.h5')
 
 def main():
 	parser = argparse.ArgumentParser()
