@@ -6,7 +6,7 @@ import glob
 import scipy
 import random
 import argparse
-from sklearn.utils import shuffle
+import cv2
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
@@ -49,35 +49,59 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False):	
-	num_images = len(path_list)
-	if use_augmentation:
-		num_images *= augmentation_factor
-	
+def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False):
+	# Calculate number of images
+	num_images = 0
+	for file_path in path_list:
+		file_name = os.path.basename(file_path)
+		if use_augmentation:
+			num_images += len(params[file_name]) * augmentation_factor
+		else:
+			num_images += len(params[file_name])
+
 	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
 	Y = numpy.zeros((num_images), dtype=float)
+	Z = []
 	
+	# Load images
 	i = 0
-	for file_path in path_list:
-		imgx = load_img(file_path)
+	for file_path in path_list:	
+		orig_img = load_img(file_path)
+		h = orig_img.shape[0]
+		imgx = orig_img
 		file_name = os.path.basename(file_path)
-		imgy = max(params[file_name])
-		if use_augmentation:
-			for j in range(augmentation_factor):
-				img_tmp = augmentation(imgx)
-				X[i * augmentation_factor + j,:,:,:] = standardize_img(img_tmp)
-				Y[i * augmentation_factor + j] = imgy
-		else:
-			X[i,:,:,:] = standardize_img(imgx)
-			Y[i] = imgy
+		file_base, file_ext = os.path.splitext(file_path)
 		
-		i += 1
-		
-	if use_shuffle:
-		X, Y = shuffle(X, Y, random_state=0)
-	
+		values = sorted(params[file_name], reverse = True)
 
-	return X, Y
+		j = 0
+		for y in values:
+			if use_augmentation:
+				for j in range(augmentation_factor):
+					img_tmp = augmentation(imgx)
+					X[i,:,:,:] = standardize_img(img_tmp)
+					Y[i] = y
+					Z.append("{}_{}{}".format(file_base, j, file_ext))
+					i += 1
+					j += 1
+			else:
+				X[i,:,:,:] = standardize_img(imgx)
+				Y[i] = y
+				Z.append("{}_{}{}".format(file_base, j, file_ext))
+				i += 1
+				j += 1
+			
+			imgx = orig_img[0:int(h*y),:,:]
+			imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+	
+	if use_shuffle:
+		randomize = numpy.arange(len(Z))
+		numpy.random.shuffle(randomize)
+		X = X[randomize]
+		Y = Y[randomize]
+		Z = [Z[i] for i in randomize]
+
+	return X, Y, Z
 	
 def load_annotation(file_path):
 	params = {}
@@ -117,7 +141,7 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
+	X, Y, Z = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
 	print(X.shape)
 
 
@@ -153,7 +177,7 @@ def test(input_dir, output_dir):
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, params)
+	X, Y, Z = load_imgs(path_list, params)
 
 		  
 	# Load the model
@@ -170,16 +194,16 @@ def test(input_dir, output_dir):
 
 	# Write the prediction to a file
 	file = open("{}/prediction.txt".format(output_dir), "w")
-	for i in range(len(path_list)):
-		file_name = os.path.basename(path_list[i])
+	for i in range(len(Z)):
+		file_name = os.path.basename(Z[i])
 		file.write("{},{}\n".format(file_name, predictedY[i]))
 	file.close()
 
 
 	# Save the predicted images
-	for i in range(len(path_list)):
-		file_name = os.path.basename(path_list[i])
-		img = Image.open(path_list[i])
+	for i in range(len(Z)):
+		file_name = os.path.basename(Z[i])
+		img = Image.open(Z[i])
 		w, h = img.size
 		imgdraw = ImageDraw.Draw(img)
 		imgdraw.line([(0, h * predictedY[i]), (w, h * predictedY[i])], fill = "yellow", width = 3)
@@ -194,9 +218,8 @@ def main():
 	parser.add_argument('--num_epochs', type=int, default=10)
 	parser.add_argument('--learning_rate', type=float, default=0.001)
 	parser.add_argument('--use_augmentation', action="store_true", help="Use augmentation for training images")
-	parser.add_argument('--augmentation_factor', type=int, default=100)
-	args = parser.parse_args()
-
+	parser.add_argument('--augmentation_factor', type=int, default=20)
+	args = parser.parse_args()	
 
 	# Create output directoryu
 	if not os.path.isdir(args.output_dir):
