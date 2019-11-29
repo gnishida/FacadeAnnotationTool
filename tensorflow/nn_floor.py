@@ -2,6 +2,7 @@ import datetime
 import os
 from PIL import Image, ImageDraw
 import numpy
+import scipy.misc
 import glob
 import scipy
 import random
@@ -25,8 +26,7 @@ def augmentation(x):
 	
 	# flip
 	x = tf.image.random_flip_left_right(x)
-	
-	
+		
 	# rotate
 	angle = random.uniform(-0.5, 0.5)
 	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
@@ -43,7 +43,6 @@ def standardize_img(x):
 def load_img(file_path):
 	img = Image.open(file_path)
 	img.load()
-	img = img.resize((WIDTH, HEIGHT))
 	img = numpy.asarray(img, dtype="int32")
 	img = img.astype("float")
 	return img
@@ -55,53 +54,52 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
 	for file_path in path_list:
 		file_name = os.path.basename(file_path)
 		if use_augmentation:
-			num_images += len(params[file_name]) * augmentation_factor
+			num_images += (len(params[file_name]) + 1) * augmentation_factor
 		else:
-			num_images += len(params[file_name])
+			num_images += len(params[file_name]) + 1
 
 	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
 	Y = numpy.zeros((num_images), dtype=float)
-	Z = []
 	
 	# Load images
 	i = 0
 	for file_path in path_list:	
 		orig_img = load_img(file_path)
-		h = orig_img.shape[0]
-		imgx = orig_img
+		orig_height = orig_img.shape[0]
+		imgx = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		file_name = os.path.basename(file_path)
 		file_base, file_ext = os.path.splitext(file_path)
 		
 		values = sorted(params[file_name], reverse = True)
+		values.append(0.0)
 
-		j = 0
+		height = orig_height
 		for y in values:
 			if use_augmentation:
 				for j in range(augmentation_factor):
 					img_tmp = augmentation(imgx)
+										
 					X[i,:,:,:] = standardize_img(img_tmp)
-					Y[i] = y
-					Z.append("{}_{}{}".format(file_base, j, file_ext))
-					i += 1
-					j += 1
+					Y[i] = y * orig_height / height
+					i += 1					
 			else:
 				X[i,:,:,:] = standardize_img(imgx)
-				Y[i] = y
-				Z.append("{}_{}{}".format(file_base, j, file_ext))
+				Y[i] = y * orig_height / height
 				i += 1
-				j += 1
+
+			# Update image
+			if y > 0:
+				height = int(orig_height * y)
+				imgx = orig_img[0:height,:,:]
+				imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 			
-			imgx = orig_img[0:int(h*y),:,:]
-			imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-	
 	if use_shuffle:
-		randomize = numpy.arange(len(Z))
+		randomize = numpy.arange(len(X))
 		numpy.random.shuffle(randomize)
 		X = X[randomize]
 		Y = Y[randomize]
-		Z = [Z[i] for i in randomize]
 
-	return X, Y, Z
+	return X, Y
 	
 def load_annotation(file_path):
 	params = {}
@@ -138,16 +136,13 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
-
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y, Z = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
+	X, Y = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
 	print(X.shape)
-
 
 	# Build model
 	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
-
 
 	# Setup for Tensorboard
 	log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -158,13 +153,11 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 		update_freq='batch',
 		histogram_freq=1)
 
-
 	# Training model
 	model.fit(X, Y,
 		epochs=num_epochs,
 		validation_split = 0.2,
 		callbacks=[tensorboard_callback])
-
 
 	# Save the model
 	model.save("{}/nn_model.h5".format(output_dir))
@@ -174,51 +167,71 @@ def test(input_dir, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
-
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y, Z = load_imgs(path_list, params)
-
+	X, Y = load_imgs(path_list, params)
 		  
 	# Load the model
 	model = tf.keras.models.load_model("{}/nn_model.h5".format(output_dir))
-	
-	
+		
 	# Evaluation
 	model.evaluate(X, Y)
 	
-
 	# Prediction
 	predictedY = model.predict(X).flatten()
 
-
 	# Write the prediction to a file
 	file = open("{}/prediction.txt".format(output_dir), "w")
-	for i in range(len(Z)):
-		file_name = os.path.basename(Z[i])
+	for i in range(len(path_list)):
+		file_name = os.path.basename(path_list[i])
 		file.write("{},{}\n".format(file_name, predictedY[i]))
 	file.close()
 
-
 	# Save the predicted images
-	for i in range(len(Z)):
-		file_name = os.path.basename(Z[i])
-		img = Image.open(Z[i])
+	for i in range(len(path_list)):				
+		print(path_list[i])
+		orig_x = load_img(path_list[i])
+		orig_height = orig_x.shape[0]
+
+		x = cv2.resize(orig_x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		height = orig_height
+		
+		# Repeatedly predict floors
+		Y = []
+		while True:		
+			# Prediction
+			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+			X[0,:,:,:] = standardize_img(x)
+			y = model.predict(X).flatten()[0]
+			y = numpy.clip(y * height / orig_height, a_min = 0, a_max = 1)
+			if height * y < 20: break
+			Y.append(y)
+			
+			# Update image
+			height = int(orig_height * y)
+			x = orig_x[0:height,:,:]
+			x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		
+		# Load image
+		file_name = os.path.basename(path_list[i])
+		img = Image.open(path_list[i])
 		w, h = img.size
 		imgdraw = ImageDraw.Draw(img)
-		imgdraw.line([(0, h * predictedY[i]), (w, h * predictedY[i])], fill = "yellow", width = 3)
+		
+		for y in Y:
+			imgdraw.line([(0, h * y), (w, h * y)], fill = "yellow", width = 3)
 		img.save("{}/{}".format(output_dir, file_name))
 
 
-def main():
+def main():	
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--mode', required=True, choices=["train", "test"])
 	parser.add_argument('--input_dir', required=True, help="path to folder containing images")
 	parser.add_argument('--output_dir', default="out", help="where to put output files")
 	parser.add_argument('--num_epochs', type=int, default=10)
-	parser.add_argument('--learning_rate', type=float, default=0.001)
+	parser.add_argument('--learning_rate', type=float, default=0.0001)
 	parser.add_argument('--use_augmentation', action="store_true", help="Use augmentation for training images")
-	parser.add_argument('--augmentation_factor', type=int, default=20)
+	parser.add_argument('--augmentation_factor', type=int, default=100)
 	args = parser.parse_args()	
 
 	# Create output directoryu
