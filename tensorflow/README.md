@@ -1,3 +1,6 @@
+## Prerequisites
+- Tensorflow 2.0
+
 ## How to use
 
 ```sh
