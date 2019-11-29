@@ -1,3 +1,4 @@
 logs/
+out/
 !out/model.h5
 *.h5
