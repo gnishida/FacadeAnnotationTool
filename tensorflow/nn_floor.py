@@ -143,7 +143,7 @@ params = load_annotation("facade_annotation.txt")
 
 # Split the tensor into train and test dataset
 train_path_list = glob.glob("../ECP/image_train/*.jpg")
-trainX, trainY = load_imgs(train_path_list, use_augmentation = True, use_shuffle = False)
+trainX, trainY = load_imgs(train_path_list, use_augmentation = True, use_shuffle = True)
 test_path_list = glob.glob("../ECP/image_test/*.jpg")
 testX, testY = load_imgs(test_path_list)
 print(trainX.shape)
