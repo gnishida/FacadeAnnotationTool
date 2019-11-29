@@ -19,8 +19,8 @@ NUM_CLASSES = 1
 
 
 def augmentation(x):
-	#x = tf.image.resize_with_crop_or_pad(x, HEIGHT + 8, WIDTH + 8)
-	#x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
+	x = tf.image.resize_with_crop_or_pad(x, HEIGHT + 8, WIDTH + 8)
+	x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
 	x = tf.image.random_flip_left_right(x)
 	angle = random.uniform(-0.5, 0.5)
 	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
