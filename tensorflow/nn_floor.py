@@ -5,33 +5,19 @@ import numpy
 import glob
 import scipy
 import random
+import argparse
 from sklearn.utils import shuffle
 
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
 
-import resnet
-
-
-NUM_GPUS = 1
-BS_PER_GPU = 64
-NUM_EPOCHS = 60
 
 HEIGHT = 96
 WIDTH = 96
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
-
-BASE_LEARNING_RATE = 0.001
-LR_SCHEDULE = [(0.1, 30), (0.01, 45)]
-
 IMG_NUM =  100
-
-
-def normalize(x, y):
-	x = tf.image.per_image_standardization(x)
-	return x, y
 
 
 def augmentation(x):
@@ -49,18 +35,6 @@ def standardize_img(x):
 	return (x - mean) / std
 
 
-def schedule(epoch):
-	initial_learning_rate = BASE_LEARNING_RATE * BS_PER_GPU / 128
-	learning_rate = initial_learning_rate
-	for mult, start_epoch in LR_SCHEDULE:
-		if epoch >= start_epoch:
-			learning_rate = initial_learning_rate * mult
-		else:
-			break
-	tf.summary.scalar('learning rate', data=learning_rate, step=epoch)
-	return learning_rate
-
-
 def load_img(file_path):
 	img = Image.open(file_path)
 	img.load()
@@ -70,12 +44,10 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(path_list, use_augmentation = False, use_shuffle = False):
-	# Load image
-	
+def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False):	
 	num_images = len(path_list)
 	if use_augmentation:
-		num_images *= IMG_NUM
+		num_images *= augmentation_factor
 	
 	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
 	Y = numpy.zeros((num_images), dtype=float)
@@ -86,10 +58,10 @@ def load_imgs(path_list, use_augmentation = False, use_shuffle = False):
 		file_name = os.path.basename(file_path)
 		imgy = max(params[file_name])
 		if use_augmentation:
-			for j in range(IMG_NUM):
-				X[i * IMG_NUM + j,:,:,:] = augmentation(imgx)
-				X[i * IMG_NUM + j,:,:,:] = standardize_img(X[i * IMG_NUM + j,:,:,:])
-				Y[i * IMG_NUM] = imgy
+			for j in range(augmentation_factor):
+				img_tmp = augmentation(imgx)
+				X[i * augmentation_factor + j,:,:,:] = standardize_img(img_tmp)
+				Y[i * augmentation_factor] = imgy
 		else:
 			X[i,:,:,:] = standardize_img(imgx)
 			Y[i] = imgy
@@ -99,10 +71,6 @@ def load_imgs(path_list, use_augmentation = False, use_shuffle = False):
 	if use_shuffle:
 		X, Y = shuffle(X, Y, random_state=0)
 	
-	# Create tensor from numpy array
-	#X = tf.constant(X)
-	#X = tf.compat.v2.image.per_image_standardization(X)
-	#Y = tf.constant(Y)
 
 	return X, Y
 	
@@ -121,7 +89,7 @@ def load_annotation(file_path):
 	return params
 
 
-def build_model(int_shape, num_params):
+def build_model(int_shape, num_params, learning_rate):
 	model = keras.Sequential([
 		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
 		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
@@ -129,7 +97,7 @@ def build_model(int_shape, num_params):
 		tf.keras.layers.Dense(num_params, name='fc3')
 	])
 
-	optimizer = tf.keras.optimizers.RMSprop(0.001)
+	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
 	model.compile(loss='mse',
 		optimizer=optimizer,
@@ -137,72 +105,113 @@ def build_model(int_shape, num_params):
 	return model
   
 
-# Load parameters
-params = load_annotation("facade_annotation.txt")
+def train(input_dir, num_epochs, learning_late, augmentation_factor, output_dir):
+	# Load parameters
+	params = load_annotation("facade_annotation.txt")
 
 
-# Split the tensor into train and test dataset
-train_path_list = glob.glob("../ECP/image_train/*.jpg")
-trainX, trainY = load_imgs(train_path_list, use_augmentation = True, use_shuffle = True)
-test_path_list = glob.glob("../ECP/image_test/*.jpg")
-testX, testY = load_imgs(test_path_list)
-print(trainX.shape)
-print(testX.shape)
+	# Split the tensor into train and test dataset
+	path_list = glob.glob("{}/*.jpg".format(input_dir))
+	X, Y = load_imgs(path_list, params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True)
+	print(X.shape)
 
 
-# Build model
-model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES)
+	# Build model
+	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
 
 
-# Setup for Tensorboard
-log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
-file_writer.set_as_default()
-tensorboard_callback = TensorBoard(
-	log_dir=log_dir,
-	update_freq='batch',
-	histogram_freq=1)
+	# Setup for Tensorboard
+	log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
+	file_writer.set_as_default()
+	tensorboard_callback = TensorBoard(
+		log_dir=log_dir,
+		update_freq='batch',
+		histogram_freq=1)
 
 
-# Training model
-lr_schedule_callback = LearningRateScheduler(schedule)
-model.fit(trainX, trainY,
-	epochs=NUM_EPOCHS,
-	validation_split = 0.2,
-	callbacks=[tensorboard_callback, lr_schedule_callback])
+	# Training model
+	model.fit(X, Y,
+		epochs=num_epochs,
+		validation_split = 0.2,
+		callbacks=[tensorboard_callback])
+
+
+	# Save the model
+	model.save("{}/model.h5".format(output_dir))
+
+
+def test(input_dir, output_dir):
+	# Load parameters
+	params = load_annotation("facade_annotation.txt")
+
+
+	# Split the tensor into train and test dataset
+	path_list = glob.glob("{}/*.jpg".format(input_dir))
+	X, Y = load_imgs(path_list, params)
+
 		  
-		  
-# Evaluation
-model.evaluate(testX, testY)
+	# Load the model
+	model = keras.models.load_model("{}/model.h5".format(output_dir))
+	
+	
+	# Evaluation
+	model.evaluate(X, Y)
+	
 
-# Prediction
-predictedY = model.predict(testX).flatten()
-
-
-# Write the prediction to a file
-file = open("prediction.txt", "w")
-for i in range(len(test_path_list)):
-	file_name = os.path.basename(test_path_list[i])
-	file.write("{},{}\n".format(file_name, predictedY[i]))
-file.close()
+	# Prediction
+	predictedY = model.predict(X).flatten()
 
 
-# Save the predicted images
-output_dir = "prediction_img"
-if not os.path.isdir(output_dir):
-	os.mkdir(output_dir)
-for i in range(len(test_path_list)):
-	file_name = os.path.basename(test_path_list[i])
-	img = Image.open(test_path_list[i])
-	w, h = img.size
-	imgdraw = ImageDraw.Draw(img)
-	imgdraw.line([(0, h * predictedY[i]), (w, h * predictedY[i])], fill = "yellow", width = 3)
-	img.save("{}/{}".format(output_dir, file_name))
+	# Write the prediction to a file
+	file = open("{}/prediction.txt".format(output_dir), "w")
+	for i in range(len(path_list)):
+		file_name = os.path.basename(path_list[i])
+		file.write("{},{}\n".format(file_name, predictedY[i]))
+	file.close()
 
 
-# Save the model
-model.save('model.h5')
+	# Save the predicted images
+	for i in range(len(path_list)):
+		file_name = os.path.basename(path_list[i])
+		img = Image.open(path_list[i])
+		w, h = img.size
+		imgdraw = ImageDraw.Draw(img)
+		imgdraw.line([(0, h * predictedY[i]), (w, h * predictedY[i])], fill = "yellow", width = 3)
+		img.save("{}/{}".format(output_dir, file_name))
 
 
-# Load the model
-#new_model = keras.models.load_model('model.h5')
+	# Save the model
+	model.save('model.h5')
+
+
+	# Load the model
+	#new_model = keras.models.load_model('model.h5')
+
+def main():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--mode', required=True, choices=["train", "test"])
+	parser.add_argument('--input_dir', required=True, help="path to folder containing images")
+	parser.add_argument('--output_dir', default="out", help="where to put output files")
+	parser.add_argument('--num_epochs', type=int, default=10)
+	parser.add_argument('--learning_rate', type=float, default=0.001)
+	parser.add_argument('--augmentation_factor', type=int, default=100)
+	args = parser.parse_args()
+
+
+	# Create output directoryu
+	if not os.path.isdir(args.output_dir):
+		os.mkdir(args.output_dir)
+	
+
+	if args.mode == "train":
+		train(args.input_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.output_dir)
+	elif args.mode == "test":
+		test(args.input_dir, args.output_dir)
+	else:
+		print("Invalid mode is specified {}".format(args.mode))
+		exit(1)
+	
+
+if __name__== "__main__":
+	main()
