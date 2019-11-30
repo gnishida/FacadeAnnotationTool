@@ -17,6 +17,7 @@ HEIGHT = 96
 WIDTH = 96
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
+MODEL_FILE_NAME = "nn_model.h5"
 
 
 def augmentation(x):
@@ -132,13 +133,13 @@ def build_model(int_shape, num_params, learning_rate):
 	return model
   
 
-def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_factor, output_dir):
+def train(input_dir, num_epochs, learning_late, augmentation_factor, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
+	X, Y = load_imgs(path_list, params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True)
 	print(X.shape)
 
 	# Build model
@@ -160,7 +161,7 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 		callbacks=[tensorboard_callback])
 
 	# Save the model
-	model.save("{}/nn_model.h5".format(output_dir))
+	model.save("{}/{}".format(output_dir, MODEL_FILE_NAME))
 
 
 def test(input_dir, output_dir):
@@ -172,7 +173,7 @@ def test(input_dir, output_dir):
 	X, Y = load_imgs(path_list, params)
 		  
 	# Load the model
-	model = tf.keras.models.load_model("{}/nn_model.h5".format(output_dir))
+	model = tf.keras.models.load_model("{}/{}".format(output_dir, MODEL_FILE_NAME))
 		
 	# Evaluation
 	model.evaluate(X, Y)
@@ -230,7 +231,6 @@ def main():
 	parser.add_argument('--output_dir', default="out", help="where to put output files")
 	parser.add_argument('--num_epochs', type=int, default=10)
 	parser.add_argument('--learning_rate', type=float, default=0.0001)
-	parser.add_argument('--use_augmentation', action="store_true", help="Use augmentation for training images")
 	parser.add_argument('--augmentation_factor', type=int, default=100)
 	args = parser.parse_args()	
 
@@ -240,7 +240,7 @@ def main():
 	
 
 	if args.mode == "train":
-		train(args.input_dir, args.num_epochs, args.learning_rate, args.use_augmentation, args.augmentation_factor, args.output_dir)
+		train(args.input_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.output_dir)
 	elif args.mode == "test":
 		test(args.input_dir, args.output_dir)
 	else:

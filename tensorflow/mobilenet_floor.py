@@ -13,10 +13,11 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
 
 
-HEIGHT = 96
-WIDTH = 96
+HEIGHT = 160
+WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
+MODEL_FILE_NAME = "mobilenet_model.h5"
 
 
 def augmentation(x):
@@ -48,15 +49,21 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False):
+def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_floors = False):
 	# Calculate number of images
 	num_images = 0
 	for file_path in path_list:
 		file_name = os.path.basename(file_path)
 		if use_augmentation:
-			num_images += (len(params[file_name]) + 1) * augmentation_factor
+			if all_floors:
+				num_images += (len(params[file_name]) + 1) * augmentation_factor
+			else:
+				num_images += augmentation_factor
 		else:
-			num_images += len(params[file_name]) + 1
+			if all_floors:
+				num_images += len(params[file_name]) + 1
+			else:
+				num_images += 1
 
 	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
 	Y = numpy.zeros((num_images), dtype=float)
@@ -87,6 +94,8 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
 				Y[i] = y * orig_height / height
 				i += 1
 
+			if not all_floors: break
+			
 			# Update image
 			if y > 0:
 				height = int(orig_height * y)
@@ -118,27 +127,30 @@ def load_annotation(file_path):
 
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
-		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
-		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
-		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
-		tf.keras.layers.Dense(num_params, name='fc3')
+		tf.keras.applications.MobileNetV2(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
+		tf.keras.layers.Flatten(),
+		tf.keras.layers.Dense(512, activation='relu'),
+		tf.keras.layers.Dropout(0.5),
+		tf.keras.layers.Dense(num_params),
 	])
-
+	
 	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-
-	model.compile(loss='mse',
+	
+	model.compile(
+		loss='mse',
 		optimizer=optimizer,
 		metrics=['mae', 'mse'])
+	
 	return model
   
 
-def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_factor, output_dir):
+def train(input_dir, num_epochs, learning_late, augmentation_factor, all_floors, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
+	X, Y = load_imgs(path_list, params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_floors = all_floors)
 	print(X.shape)
 
 	# Build model
@@ -160,19 +172,19 @@ def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_f
 		callbacks=[tensorboard_callback])
 
 	# Save the model
-	model.save("{}/nn_model.h5".format(output_dir))
+	model.save("{}/{}".format(output_dir, MODEL_FILE_NAME))
 
 
-def test(input_dir, output_dir):
+def test(input_dir, all_floors, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, params)
+	X, Y = load_imgs(path_list, params, all_floors = all_floors)
 		  
 	# Load the model
-	model = tf.keras.models.load_model("{}/nn_model.h5".format(output_dir))
+	model = tf.keras.models.load_model("{}/{}".format(output_dir, MODEL_FILE_NAME))
 		
 	# Evaluation
 	model.evaluate(X, Y)
@@ -207,6 +219,8 @@ def test(input_dir, output_dir):
 			if height * y < 20: break
 			Y.append(y)
 			
+			if not all_floors: break
+			
 			# Update image
 			height = int(orig_height * y)
 			x = orig_x[0:height,:,:]
@@ -230,19 +244,18 @@ def main():
 	parser.add_argument('--output_dir', default="out", help="where to put output files")
 	parser.add_argument('--num_epochs', type=int, default=10)
 	parser.add_argument('--learning_rate', type=float, default=0.0001)
-	parser.add_argument('--use_augmentation', action="store_true", help="Use augmentation for training images")
 	parser.add_argument('--augmentation_factor', type=int, default=100)
+	parser.add_argument('--all_floors', action="store_true", help="Use all floors")
 	args = parser.parse_args()	
 
 	# Create output directoryu
 	if not os.path.isdir(args.output_dir):
 		os.mkdir(args.output_dir)
-	
 
 	if args.mode == "train":
-		train(args.input_dir, args.num_epochs, args.learning_rate, args.use_augmentation, args.augmentation_factor, args.output_dir)
+		train(args.input_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_floors, args.output_dir)
 	elif args.mode == "test":
-		test(args.input_dir, args.output_dir)
+		test(args.input_dir, args.all_floors, args.output_dir)
 	else:
 		print("Invalid mode is specified {}".format(args.mode))
 		exit(1)
