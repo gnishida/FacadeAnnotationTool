@@ -146,7 +146,7 @@ def build_model(int_shape, num_params, learning_rate):
 	return model
   
 
-def train(input_dir, num_epochs, learning_late, augmentation_factor, all_floors, output_dir):
+def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_floors, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
@@ -174,10 +174,10 @@ def train(input_dir, num_epochs, learning_late, augmentation_factor, all_floors,
 		callbacks=[tensorboard_callback])
 
 	# Save the model
-	model.save("{}/{}".format(output_dir, MODEL_FILE_NAME))
+	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
-def test(input_dir, all_floors, output_dir):
+def test(input_dir, model_dir, all_floors, output_dir):
 	# Load parameters
 	params = load_annotation("facade_annotation.txt")
 
@@ -186,7 +186,7 @@ def test(input_dir, all_floors, output_dir):
 	X, Y = load_imgs(path_list, params, all_floors = all_floors)
 		  
 	# Load the model
-	model = tf.keras.models.load_model("{}/{}".format(output_dir, MODEL_FILE_NAME))
+	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
 		
 	# Evaluation
 	model.evaluate(X, Y)
@@ -244,6 +244,7 @@ def main():
 	parser.add_argument('--mode', required=True, choices=["train", "test"])
 	parser.add_argument('--input_dir', required=True, help="path to folder containing images")
 	parser.add_argument('--output_dir', default="out", help="where to put output files")
+	parser.add_argument('--model_dir', default="models", help="path to folder containing models")
 	parser.add_argument('--num_epochs', type=int, default=10)
 	parser.add_argument('--learning_rate', type=float, default=0.0001)
 	parser.add_argument('--augmentation_factor', type=int, default=100)
@@ -255,9 +256,9 @@ def main():
 		os.mkdir(args.output_dir)
 
 	if args.mode == "train":
-		train(args.input_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_floors, args.output_dir)
+		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_floors, args.output_dir)
 	elif args.mode == "test":
-		test(args.input_dir, args.all_floors, args.output_dir)
+		test(args.input_dir, args.model_dir, args.all_floors, args.output_dir)
 	else:
 		print("Invalid mode is specified {}".format(args.mode))
 		exit(1)
