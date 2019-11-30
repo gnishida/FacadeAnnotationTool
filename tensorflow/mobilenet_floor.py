@@ -1,59 +1,106 @@
 import datetime
 import os
-from PIL import Image
+from PIL import Image, ImageDraw
 import numpy
+import scipy.misc
 import glob
+import scipy
+import random
+import argparse
+import cv2
 
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras.callbacks import TensorBoard, LearningRateScheduler
+from tensorflow.keras.callbacks import TensorBoard
 
 
-NUM_GPUS = 1
-BS_PER_GPU = 64
-NUM_EPOCHS = 200
-
-HEIGHT = 160
-WIDTH = 160
+HEIGHT = 96
+WIDTH = 96
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
 
-BASE_LEARNING_RATE = 0.01
-LR_SCHEDULE = [(0.1, 30), (0.01, 45)]
 
+def augmentation(x):
+	# crop
+	x = tf.image.resize_with_crop_or_pad(x, HEIGHT + 8, WIDTH + 8)
+	x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
+	
+	# flip
+	x = tf.image.random_flip_left_right(x)
+		
+	# rotate
+	angle = random.uniform(-0.5, 0.5)
+	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+	
+	return x
+	
 
-def normalize(x, y):
-  x = tf.image.per_image_standardization(x)
-  return x, y
+def standardize_img(x):
+	mean = numpy.mean(x, axis=None, keepdims=True)
+	std = numpy.sqrt(((x - mean)**2).mean(axis=None, keepdims=True))
+	return (x - mean) / std
 
-
-def augmentation(x, y):
-    x = tf.image.resize_with_crop_or_pad(
-        x, HEIGHT + 8, WIDTH + 8)
-    x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
-    x = tf.image.random_flip_left_right(x)
-    return x, y	
-
-
-def schedule(epoch):
-  initial_learning_rate = BASE_LEARNING_RATE * BS_PER_GPU / 128
-  learning_rate = initial_learning_rate
-  for mult, start_epoch in LR_SCHEDULE:
-    if epoch >= start_epoch:
-      learning_rate = initial_learning_rate * mult
-    else:
-      break
-  tf.summary.scalar('learning rate', data=learning_rate, step=epoch)
-  return learning_rate
 
 def load_img(file_path):
 	img = Image.open(file_path)
 	img.load()
-	img = img.resize((WIDTH, HEIGHT))
 	img = numpy.asarray(img, dtype="int32")
 	img = img.astype("float")
 	return img
 
+
+def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False):
+	# Calculate number of images
+	num_images = 0
+	for file_path in path_list:
+		file_name = os.path.basename(file_path)
+		if use_augmentation:
+			num_images += (len(params[file_name]) + 1) * augmentation_factor
+		else:
+			num_images += len(params[file_name]) + 1
+
+	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
+	Y = numpy.zeros((num_images), dtype=float)
+	
+	# Load images
+	i = 0
+	for file_path in path_list:	
+		orig_img = load_img(file_path)
+		orig_height = orig_img.shape[0]
+		imgx = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		file_name = os.path.basename(file_path)
+		file_base, file_ext = os.path.splitext(file_path)
+		
+		values = sorted(params[file_name], reverse = True)
+		values.append(0.0)
+
+		height = orig_height
+		for y in values:
+			if use_augmentation:
+				for j in range(augmentation_factor):
+					img_tmp = augmentation(imgx)
+										
+					X[i,:,:,:] = standardize_img(img_tmp)
+					Y[i] = y * orig_height / height
+					i += 1					
+			else:
+				X[i,:,:,:] = standardize_img(imgx)
+				Y[i] = y * orig_height / height
+				i += 1
+
+			# Update image
+			if y > 0:
+				height = int(orig_height * y)
+				imgx = orig_img[0:height,:,:]
+				imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+			
+	if use_shuffle:
+		randomize = numpy.arange(len(X))
+		numpy.random.shuffle(randomize)
+		X = X[randomize]
+		Y = Y[randomize]
+
+	return X, Y
+	
 def load_annotation(file_path):
 	params = {}
 	file = open(file_path, "r")
@@ -68,91 +115,138 @@ def load_annotation(file_path):
 		
 	return params
 
-		
-def build_mode(input_shape, num_params):
+
+def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
-		tf.keras.applications.MobileNetV2(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
-		tf.keras.layers.GlobalAveragePooling2D(),
-		keras.layers.Dense(num_params)
+		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
+		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
+		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
+		tf.keras.layers.Dense(num_params, name='fc3')
 	])
-	
-	model.compile(
-		optimizer=tf.keras.optimizers.RMSprop(lr=0.001),
-		loss='mse',
+
+	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+	model.compile(loss='mse',
+		optimizer=optimizer,
 		metrics=['mae', 'mse'])
-	
 	return model
   
 
-# Load parameters
-params = load_annotation("facade_annotation.txt")
+def train(input_dir, num_epochs, learning_late, use_augmentation, augmentation_factor, output_dir):
+	# Load parameters
+	params = load_annotation("facade_annotation.txt")
+
+	# Split the tensor into train and test dataset
+	path_list = glob.glob("{}/*.jpg".format(input_dir))
+	X, Y = load_imgs(path_list, params, use_augmentation = use_augmentation, augmentation_factor = augmentation_factor, use_shuffle = True)
+	print(X.shape)
+
+	# Build model
+	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
+
+	# Setup for Tensorboard
+	log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
+	file_writer.set_as_default()
+	tensorboard_callback = TensorBoard(
+		log_dir=log_dir,
+		update_freq='batch',
+		histogram_freq=1)
+
+	# Training model
+	model.fit(X, Y,
+		epochs=num_epochs,
+		validation_split = 0.2,
+		callbacks=[tensorboard_callback])
+
+	# Save the model
+	model.save("{}/nn_model.h5".format(output_dir))
 
 
-# Load images
-path_list = glob.glob("../ECP/images/*.jpg")
-X = numpy.zeros((len(path_list), WIDTH, HEIGHT, 3), dtype=float)
-Y = numpy.zeros((len(path_list)), dtype=float)
-i = 0
-for file_path in path_list:
-	X[i,:,:,:] = load_img(file_path)
-	file_name = os.path.basename(file_path)
-	Y[i] = max(params[file_name])
-	i += 1
+def test(input_dir, output_dir):
+	# Load parameters
+	params = load_annotation("facade_annotation.txt")
 
-
-# Create tensor from numpy array
-X = tf.constant(X)
-X = tf.compat.v2.image.per_image_standardization(X)
-Y = tf.constant(Y)
-
-# Split the tensor into train and test dataset
-num_train = int(len(Y) * 0.8)
-num_test = len(Y) - num_train
-trainX, testX = tf.split(X, [num_train, num_test], 0)
-trainY, testY = tf.split(Y, [num_train, num_test], 0)
-print(trainX.shape)
-print(testX.shape)
-
-
-# Build model
-model = build_mode((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES)
-model.summary()
-quit()
-
-# Setup for Tensorboard
-log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
-file_writer.set_as_default()
-tensorboard_callback = TensorBoard(
-	log_dir=log_dir,
-	update_freq='batch',
-	histogram_freq=1)
-
-
-# Training model
-lr_schedule_callback = LearningRateScheduler(schedule)
-model.fit(trainX, trainY,
-	epochs=NUM_EPOCHS,
-	validation_split = 0.2,
-	callbacks=[tensorboard_callback, lr_schedule_callback])
+	# Split the tensor into train and test dataset
+	path_list = glob.glob("{}/*.jpg".format(input_dir))
+	X, Y = load_imgs(path_list, params)
 		  
-		  
-# Evaluation
-model.evaluate(testX, testY)
+	# Load the model
+	model = tf.keras.models.load_model("{}/nn_model.h5".format(output_dir))
+		
+	# Evaluation
+	model.evaluate(X, Y)
+	
+	# Prediction
+	predictedY = model.predict(X).flatten()
 
-# Prediction
-predictedY = model.predict(X).flatten()
+	# Write the prediction to a file
+	file = open("{}/prediction.txt".format(output_dir), "w")
+	for i in range(len(path_list)):
+		file_name = os.path.basename(path_list[i])
+		file.write("{},{}\n".format(file_name, predictedY[i]))
+	file.close()
 
-# Write the prediction to a file
-file = open("prediction.txt", "w")
-for i in range(len(path_list)):
-	file_name = os.path.basename(path_list[i])
-	#print("{}: {}".format(file_name, predictedY[i]))
-	file.write("{},{}\n".format(file_name, predictedY[i]))
-file.close()
+	# Save the predicted images
+	for i in range(len(path_list)):				
+		print(path_list[i])
+		orig_x = load_img(path_list[i])
+		orig_height = orig_x.shape[0]
 
-model.save('model.h5')
+		x = cv2.resize(orig_x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		height = orig_height
+		
+		# Repeatedly predict floors
+		Y = []
+		while True:		
+			# Prediction
+			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+			X[0,:,:,:] = standardize_img(x)
+			y = model.predict(X).flatten()[0]
+			y = numpy.clip(y * height / orig_height, a_min = 0, a_max = 1)
+			if height * y < 20: break
+			Y.append(y)
+			
+			# Update image
+			height = int(orig_height * y)
+			x = orig_x[0:height,:,:]
+			x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		
+		# Load image
+		file_name = os.path.basename(path_list[i])
+		img = Image.open(path_list[i])
+		w, h = img.size
+		imgdraw = ImageDraw.Draw(img)
+		
+		for y in Y:
+			imgdraw.line([(0, h * y), (w, h * y)], fill = "yellow", width = 3)
+		img.save("{}/{}".format(output_dir, file_name))
 
-#new_model = keras.models.load_model('model.h5')
- 
-#new_model.evaluate(testX, testY)
+
+def main():	
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--mode', required=True, choices=["train", "test"])
+	parser.add_argument('--input_dir', required=True, help="path to folder containing images")
+	parser.add_argument('--output_dir', default="out", help="where to put output files")
+	parser.add_argument('--num_epochs', type=int, default=10)
+	parser.add_argument('--learning_rate', type=float, default=0.0001)
+	parser.add_argument('--use_augmentation', action="store_true", help="Use augmentation for training images")
+	parser.add_argument('--augmentation_factor', type=int, default=100)
+	args = parser.parse_args()	
+
+	# Create output directoryu
+	if not os.path.isdir(args.output_dir):
+		os.mkdir(args.output_dir)
+	
+
+	if args.mode == "train":
+		train(args.input_dir, args.num_epochs, args.learning_rate, args.use_augmentation, args.augmentation_factor, args.output_dir)
+	elif args.mode == "test":
+		test(args.input_dir, args.output_dir)
+	else:
+		print("Invalid mode is specified {}".format(args.mode))
+		exit(1)
+	
+
+if __name__== "__main__":
+	main()
