@@ -131,6 +131,8 @@ def build_model(int_shape, num_params, learning_rate):
 		tf.keras.layers.Flatten(),
 		tf.keras.layers.Dense(512, activation='relu'),
 		tf.keras.layers.Dropout(0.5),
+		tf.keras.layers.Dense(512, activation='relu'),
+		tf.keras.layers.Dropout(0.5),
 		tf.keras.layers.Dense(num_params),
 	])
 	

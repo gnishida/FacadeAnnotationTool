@@ -128,6 +128,7 @@ def load_annotation(file_path):
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
 		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
+		tf.keras.layers.Dropout(0.5),
 		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
 		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
 		tf.keras.layers.Dense(num_params, name='fc3')
