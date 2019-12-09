@@ -20,10 +20,21 @@ NUM_CLASSES = 1
 MODEL_FILE_NAME = "nn_model.h5"
 
 
-def augmentation(x):
+def augmentation(x, y):
+	height, width, num_channels = x.shape
+	
 	# crop
-	x = tf.image.resize_with_crop_or_pad(x, HEIGHT + 8, WIDTH + 8)
-	x = tf.image.random_crop(x, [HEIGHT, WIDTH, NUM_CHANNELS])
+	#shift_h = int(width * 0.1)
+	#shift_v = int(height * 0.1)
+	shift_h = 4
+	shift_v = 4
+	offset_x = int(random.uniform(0, shift_h * 2))
+	offset_y = int(random.uniform(0, shift_v * 2))
+	x = tf.image.resize_with_crop_or_pad(x, height + shift_v * 2, width + shift_h * 2)
+	x = x[offset_y:offset_y+height, offset_x:offset_x+width,:]
+	y = (y * height + shift_v - offset_y) / height
+	if y < 0 or y > 1:
+		y = 0
 	
 	# flip
 	x = tf.image.random_flip_left_right(x)
@@ -32,7 +43,7 @@ def augmentation(x):
 	angle = random.uniform(-0.5, 0.5)
 	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
-	return x
+	return x, y
 	
 
 def standardize_img(x):
@@ -45,6 +56,14 @@ def load_img(file_path):
 	img = Image.open(file_path)
 	img.load()
 	img = numpy.asarray(img, dtype="int32")
+	
+	# Convert image to grayscale
+	r, g, b = img[:,:,0], img[:,:,1], img[:,:,2]
+	gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+	img[:,:,0] = gray
+	img[:,:,1] = gray
+	img[:,:,2] = gray
+	
 	img = img.astype("float")
 	return img
 
@@ -82,16 +101,18 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
 
 		height = orig_height
 		for y in values:
+			actual_y = y * orig_height / height
+			
 			if use_augmentation:
 				for j in range(augmentation_factor):
-					img_tmp = augmentation(imgx)
+					img_tmp, adjusted_y = augmentation(imgx, actual_y)
 										
 					X[i,:,:,:] = standardize_img(img_tmp)
-					Y[i] = y * orig_height / height
+					Y[i] = adjusted_y
 					i += 1					
 			else:
 				X[i,:,:,:] = standardize_img(imgx)
-				Y[i] = y * orig_height / height
+				Y[i] = actual_y
 				i += 1
 
 			if not all_floors: break
@@ -109,7 +130,18 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
 		Y = Y[randomize]
 
 	return X, Y
+
+
+def output_img(x, y, filename):
+	print(x.shape)
+	img = Image.fromarray(x.astype(numpy.uint8))
+	w, h = img.size
+	imgdraw = ImageDraw.Draw(img)
 	
+	imgdraw.line([(0, h * y), (w, h * y)], fill = "yellow", width = 3)
+	img.save("{}".format(filename))		
+	
+
 def load_annotation(file_path):
 	params = {}
 	file = open(file_path, "r")
@@ -247,7 +279,7 @@ def main():
 	parser.add_argument('--all_floors', action="store_true", help="Use all floors")
 	args = parser.parse_args()	
 
-	# Create output directoryu
+	# Create output directory
 	if not os.path.isdir(args.output_dir):
 		os.mkdir(args.output_dir)
 	
