@@ -79,10 +79,13 @@ def load_imgs(params, use_shuffle = False):
 	for i in range(num_images):
 		img = numpy.ones((HEIGHT, WIDTH, NUM_CHANNELS), dtype=float)
 		row = int(params[i] * HEIGHT)
-		
+				
 		# Draw horizontal line
 		img[row,:,:] = numpy.zeros((WIDTH, NUM_CHANNELS), dtype=float)
 		
+		#filename = "{}/{}.png".format("__debug__", i)
+		#output_img(img, params[i], params[i], filename)
+
 		X[i,:,:,:] = standardize_img(img)
 		Y[i] = params[i]
 			
@@ -94,13 +97,13 @@ def load_imgs(params, use_shuffle = False):
 
 	return X, Y
 
-def output_img(x, y, filename):
-	print(x.shape)
+def output_img(x, y, predY, filename):
 	img = Image.fromarray(x.astype(numpy.uint8))
 	w, h = img.size
 	imgdraw = ImageDraw.Draw(img)
 	
-	imgdraw.line([(0, h * y), (w, h * y)], fill = "yellow", width = 3)
+	imgdraw.line([(0, h * y), (w, h * y)], fill = "white", width = 3)
+	imgdraw.line([(0, h * predY), (w, h * predY)], fill = "yellow", width = 3)
 	img.save("{}".format(filename))		
 		
 def load_annotation(file_path):
@@ -119,6 +122,7 @@ def load_annotation(file_path):
 
 
 def build_model(int_shape, num_params, learning_rate):
+	'''
 	model = tf.keras.Sequential([
 		tf.keras.applications.MobileNetV2(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
 		tf.keras.layers.Flatten(),
@@ -127,6 +131,14 @@ def build_model(int_shape, num_params, learning_rate):
 		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
 		tf.keras.layers.Dropout(0.5),
 		tf.keras.layers.Dense(num_params),
+	])
+	'''
+	model = tf.keras.Sequential([
+		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
+		tf.keras.layers.Dropout(0.5),
+		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
+		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
+		tf.keras.layers.Dense(num_params, name='fc3')
 	])
 	
 	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -169,12 +181,12 @@ def train(num_images, model_dir, num_epochs, learning_late, output_dir):
 	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
-def test(num_images, model_dir, all_floors, output_dir):
+def test(num_images, model_dir, output_dir):
 	params = []
 	for i in range(num_images):
 		params.append(random.uniform(0.1, 0.9))
 	params = numpy.array(params)	
-	X, Y = load_imgs(path_list, params, all_floors = all_floors)
+	X, Y = load_imgs(params)
 		  
 	# Load the model
 	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
@@ -187,47 +199,16 @@ def test(num_images, model_dir, all_floors, output_dir):
 
 	# Write the prediction to a file
 	file = open("{}/prediction.txt".format(output_dir), "w")
-	for i in range(len(path_list)):
-		file_name = os.path.basename(path_list[i])
-		file.write("{},{}\n".format(file_name, predictedY[i]))
+	for i in range(num_images):
+		file.write("{},{}\n".format(i, predictedY[i]))
 	file.close()
 
 	# Save the predicted images
-	for i in range(len(path_list)):				
-		print(path_list[i])
-		orig_x = load_img(path_list[i])
-		orig_height = orig_x.shape[0]
-
-		x = cv2.resize(orig_x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		height = orig_height
+	for i in range(num_images):
+		print(i)
 		
-		# Repeatedly predict floors
-		Y = []
-		while True:		
-			# Prediction
-			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
-			X[0,:,:,:] = standardize_img(x)
-			y = model.predict(X).flatten()[0]
-			y = numpy.clip(y * height / orig_height, a_min = 0, a_max = 1)
-			if height * y < 20: break
-			Y.append(y)
-			
-			if not all_floors: break
-			
-			# Update image
-			height = int(orig_height * y)
-			x = orig_x[0:height,:,:]
-			x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		
-		# Load image
-		file_name = os.path.basename(path_list[i])
-		img = Image.open(path_list[i])
-		w, h = img.size
-		imgdraw = ImageDraw.Draw(img)
-		
-		for y in Y:
-			imgdraw.line([(0, h * y), (w, h * y)], fill = "yellow", width = 3)
-		img.save("{}/{}".format(output_dir, file_name))
+		filename = "{}/{}.png".format(output_dir, i)
+		output_img(X[i], Y[i], predictedY[i], filename)
 
 
 def main():	
@@ -244,9 +225,9 @@ def main():
 		os.mkdir(args.output_dir)
 
 	if args.mode == "train":
-		train(10000, args.model_dir, args.num_epochs, args.learning_rate, args.output_dir)
+		train(1000, args.model_dir, args.num_epochs, args.learning_rate, args.output_dir)
 	elif args.mode == "test":
-		test(20, args.model_dir, args.all_floors, args.output_dir)
+		test(20, args.model_dir, args.output_dir)
 	else:
 		print("Invalid mode is specified {}".format(args.mode))
 		exit(1)
