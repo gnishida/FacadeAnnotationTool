@@ -69,7 +69,7 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(params, use_shuffle = False):
+def load_imgs(params):
 	num_images = len(params)
 	
 	X = numpy.zeros((num_images, HEIGHT, WIDTH, NUM_CHANNELS), dtype=float)
@@ -77,23 +77,17 @@ def load_imgs(params, use_shuffle = False):
 	
 	# Load images
 	for i in range(num_images):
-		img = numpy.ones((HEIGHT, WIDTH, NUM_CHANNELS), dtype=float)
+		img = numpy.zeros((HEIGHT, WIDTH, NUM_CHANNELS), dtype=float)
 		row = int(params[i] * HEIGHT)
 				
 		# Draw horizontal line
-		img[row,:,:] = numpy.zeros((WIDTH, NUM_CHANNELS), dtype=float)
+		img[row,:,:] = numpy.ones((WIDTH, NUM_CHANNELS), dtype=float)
 		
 		#filename = "{}/{}.png".format("__debug__", i)
 		#output_img(img, params[i], params[i], filename)
 
 		X[i,:,:,:] = standardize_img(img)
 		Y[i] = params[i]
-			
-	if use_shuffle:
-		randomize = numpy.arange(len(X))
-		numpy.random.shuffle(randomize)
-		X = X[randomize]
-		Y = Y[randomize]
 
 	return X, Y
 
@@ -122,7 +116,6 @@ def load_annotation(file_path):
 
 
 def build_model(int_shape, num_params, learning_rate):
-	'''
 	model = tf.keras.Sequential([
 		tf.keras.applications.MobileNetV2(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
 		tf.keras.layers.Flatten(),
@@ -131,14 +124,6 @@ def build_model(int_shape, num_params, learning_rate):
 		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
 		tf.keras.layers.Dropout(0.5),
 		tf.keras.layers.Dense(num_params),
-	])
-	'''
-	model = tf.keras.Sequential([
-		tf.keras.layers.Dense(64, activation='relu', input_shape=int_shape, name='fc1'),
-		tf.keras.layers.Dropout(0.5),
-		tf.keras.layers.Dense(64, activation='relu', name='fc2'),
-		tf.keras.layers.GlobalAveragePooling2D(name='avg_pool'),
-		tf.keras.layers.Dense(num_params, name='fc3')
 	])
 	
 	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -156,7 +141,7 @@ def train(num_images, model_dir, num_epochs, learning_late, output_dir):
 	for i in range(num_images):
 		params.append(random.uniform(0.1, 0.9))
 	params = numpy.array(params)	
-	X, Y = load_imgs(params, use_shuffle = True)
+	X, Y = load_imgs(params)
 	print(X.shape)
 	
 	# Build model
@@ -217,7 +202,7 @@ def main():
 	parser.add_argument('--output_dir', default="out", help="where to put output files")
 	parser.add_argument('--model_dir', default="models", help="path to folder containing models")
 	parser.add_argument('--num_epochs', type=int, default=10)
-	parser.add_argument('--learning_rate', type=float, default=0.0001)
+	parser.add_argument('--learning_rate', type=float, default=0.00001)
 	args = parser.parse_args()	
 
 	# Create output directory
@@ -225,7 +210,7 @@ def main():
 		os.mkdir(args.output_dir)
 
 	if args.mode == "train":
-		train(1000, args.model_dir, args.num_epochs, args.learning_rate, args.output_dir)
+		train(10000, args.model_dir, args.num_epochs, args.learning_rate, args.output_dir)
 	elif args.mode == "test":
 		test(20, args.model_dir, args.output_dir)
 	else:
