@@ -17,7 +17,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
-MODEL_FILE_NAME = "experiment9_model.h5"
+MODEL_FILE_NAME = "all_floors_experiment1_model.h5"
 
 DEBUG_DIR = "__debug__"
 
@@ -254,7 +254,7 @@ def test(input_dir, model_dir, all_floors, output_dir):
 			X[0,:,:,:] = standardize_img(x)
 			y = model.predict(X).flatten()[0]
 			y = numpy.clip(y * height / orig_height, a_min = 0, a_max = 1)
-			if height * y < 20: break
+			if y < 0.05: break
 			Y.append(y)
 			
 			if not all_floors: break
