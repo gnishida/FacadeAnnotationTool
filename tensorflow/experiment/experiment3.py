@@ -255,6 +255,10 @@ def main():
 	if not os.path.isdir(args.output_dir):
 		os.mkdir(args.output_dir)
 
+	# Create model directory
+	if not os.path.isdir(args.model_dir):
+		os.mkdir(args.model_dir)
+
 	if args.mode == "train":
 		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_floors, args.output_dir)
 	elif args.mode == "test":

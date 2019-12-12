@@ -294,6 +294,10 @@ def main():
 	# Create output directory
 	if not os.path.isdir(args.output_dir):
 		os.mkdir(args.output_dir)
+
+	# Create model directory
+	if not os.path.isdir(args.model_dir):
+		os.mkdir(args.model_dir)
 		
 	# Create debug directory
 	if args.debug:
