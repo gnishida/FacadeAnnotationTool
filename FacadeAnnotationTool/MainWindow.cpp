@@ -10,31 +10,38 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 	canvas = new Canvas(this);
 	setCentralWidget(canvas);
 
+	QActionGroup* modeGroup = new QActionGroup(this);
+	modeGroup->addAction(ui.actionModeFloors);
+	modeGroup->addAction(ui.actionModeColumns);
+	ui.actionModeFloors->setChecked(true);
+
 	connect(ui.actionSave, SIGNAL(triggered()), this, SLOT(onSave()));
 	connect(ui.actionOpen, SIGNAL(triggered()), this, SLOT(onOpen()));
 	connect(ui.actionNext, SIGNAL(triggered()), this, SLOT(onNext()));
 	connect(ui.actionPrevious, SIGNAL(triggered()), this, SLOT(onPrevious()));
 	connect(ui.actionUndo, SIGNAL(triggered()), this, SLOT(onUndo()));
+	connect(ui.actionModeFloors, SIGNAL(triggered()), this, SLOT(onModeChanged()));
+	connect(ui.actionModeColumns, SIGNAL(triggered()), this, SLOT(onModeChanged()));
 	connect(ui.actionExit, SIGNAL(triggered()), this, SLOT(close()));
 
 	// load parameter file
-	loadParams();
-	loadPredictedParams();
+	loadFloorParams();
+	loadColumnParams();
 }
 
 void MainWindow::loadImage(const QFileInfo& fileinfo) {
 	canvas->loadImage(fileinfo.absoluteFilePath());
-	if (all_params.contains(fileinfo.fileName())) {
-		canvas->setParams(all_params[fileinfo.fileName()]);
+	if (all_floor_params.contains(fileinfo.fileName())) {
+		canvas->setFloorParams(all_floor_params[fileinfo.fileName()]);
 	}
-	if (all_predicted_params.contains(fileinfo.fileName())) {
-		canvas->setPredictedParams(all_predicted_params[fileinfo.fileName()]);
+	if (all_column_params.contains(fileinfo.fileName())) {
+		canvas->setColumnParams(all_column_params[fileinfo.fileName()]);
 	}
 	setWindowTitle("Window Boundary Annotation - " + fileinfo.fileName());
 }
 
-void MainWindow::loadParams() {
-	QFile file("facade_annotation.txt");
+void MainWindow::loadFloorParams() {
+	QFile file("floor_annotation.txt");
 	if (file.exists()) {
 		file.open(QIODevice::ReadOnly);
 		QTextStream in(&file);
@@ -42,15 +49,15 @@ void MainWindow::loadParams() {
 			QStringList list = in.readLine().split(",");
 
 			for (int i = 1; i < list.size(); ++i) {
-				all_params[list[0]].push_back(list[i].toFloat());
+				all_floor_params[list[0]].push_back(list[i].toFloat());
 			}
 		}
 		file.close();
 	}
 }
 
-void MainWindow::loadPredictedParams() {
-	QFile file("prediction.txt");
+void MainWindow::loadColumnParams() {
+	QFile file("column_annotation.txt");
 	if (file.exists()) {
 		file.open(QIODevice::ReadOnly);
 		QTextStream in(&file);
@@ -58,18 +65,32 @@ void MainWindow::loadPredictedParams() {
 			QStringList list = in.readLine().split(",");
 
 			for (int i = 1; i < list.size(); ++i) {
-				all_predicted_params[list[0]].push_back(list[i].toFloat());
+				all_column_params[list[0]].push_back(list[i].toFloat());
 			}
 		}
 		file.close();
 	}
 }
 
-void MainWindow::saveParams() {
-	QFile file("facade_annotation.txt");
+void MainWindow::saveFloorParams() {
+	QFile file("floor_annotation.txt");
 	file.open(QIODevice::WriteOnly);
 	QTextStream out(&file);
-	for (auto it = all_params.begin(); it != all_params.end(); ++it) {
+	for (auto it = all_floor_params.begin(); it != all_floor_params.end(); ++it) {
+		out << it.key();
+		for (auto param : it.value()) {
+			out << "," << param;
+		}
+		out << "\n";
+	}
+	file.close();
+}
+
+void MainWindow::saveColumnParams() {
+	QFile file("column_annotation.txt");
+	file.open(QIODevice::WriteOnly);
+	QTextStream out(&file);
+	for (auto it = all_column_params.begin(); it != all_column_params.end(); ++it) {
 		out << it.key();
 		for (auto param : it.value()) {
 			out << "," << param;
@@ -108,14 +129,18 @@ void MainWindow::onOpen() {
 }
 
 void MainWindow::onSave() {
-	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	saveParams();
+	all_floor_params[fileInfoList[curIndex].fileName()] = canvas->getFloorParams();
+	saveFloorParams();
+	all_column_params[fileInfoList[curIndex].fileName()] = canvas->getColumnParams();
+	saveColumnParams();
 }
 
 void MainWindow::onNext() {
 	// save parameters
-	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	saveParams();
+	all_floor_params[fileInfoList[curIndex].fileName()] = canvas->getFloorParams();
+	saveFloorParams();
+	all_column_params[fileInfoList[curIndex].fileName()] = canvas->getColumnParams();
+	saveColumnParams();
 
 	if (curIndex >= fileInfoList.size() - 1) {
 		QMessageBox msg;
@@ -130,8 +155,10 @@ void MainWindow::onNext() {
 
 void MainWindow::onPrevious() {
 	// save parameters
-	all_params[fileInfoList[curIndex].fileName()] = canvas->getParams();
-	saveParams();
+	all_floor_params[fileInfoList[curIndex].fileName()] = canvas->getFloorParams();
+	saveFloorParams();
+	all_column_params[fileInfoList[curIndex].fileName()] = canvas->getColumnParams();
+	saveColumnParams();
 
 	if (curIndex <= 0) {
 		QMessageBox msg;
@@ -146,4 +173,13 @@ void MainWindow::onPrevious() {
 
 void MainWindow::onUndo() {
 	canvas->undo();
+}
+
+void MainWindow::onModeChanged() {
+	if (ui.actionModeFloors->isChecked()) {
+		canvas->setModeHorizontal();
+	}
+	else if (ui.actionModeColumns->isChecked()) {
+		canvas->setModeVertical();
+	}
 }

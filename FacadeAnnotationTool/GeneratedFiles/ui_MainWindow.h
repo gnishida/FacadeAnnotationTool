@@ -32,10 +32,13 @@ public:
     QAction *actionPrevious;
     QAction *actionNext;
     QAction *actionUndo;
+    QAction *actionModeFloors;
+    QAction *actionModeColumns;
     QWidget *centralWidget;
     QMenuBar *menuBar;
     QMenu *menuFile;
     QMenu *menuEdit;
+    QMenu *menuMode;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
 
@@ -56,6 +59,12 @@ public:
         actionNext->setObjectName(QStringLiteral("actionNext"));
         actionUndo = new QAction(MainWindowClass);
         actionUndo->setObjectName(QStringLiteral("actionUndo"));
+        actionModeFloors = new QAction(MainWindowClass);
+        actionModeFloors->setObjectName(QStringLiteral("actionModeFloors"));
+        actionModeFloors->setCheckable(true);
+        actionModeColumns = new QAction(MainWindowClass);
+        actionModeColumns->setObjectName(QStringLiteral("actionModeColumns"));
+        actionModeColumns->setCheckable(true);
         centralWidget = new QWidget(MainWindowClass);
         centralWidget->setObjectName(QStringLiteral("centralWidget"));
         MainWindowClass->setCentralWidget(centralWidget);
@@ -66,6 +75,8 @@ public:
         menuFile->setObjectName(QStringLiteral("menuFile"));
         menuEdit = new QMenu(menuBar);
         menuEdit->setObjectName(QStringLiteral("menuEdit"));
+        menuMode = new QMenu(menuBar);
+        menuMode->setObjectName(QStringLiteral("menuMode"));
         MainWindowClass->setMenuBar(menuBar);
         mainToolBar = new QToolBar(MainWindowClass);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
@@ -76,6 +87,7 @@ public:
 
         menuBar->addAction(menuFile->menuAction());
         menuBar->addAction(menuEdit->menuAction());
+        menuBar->addAction(menuMode->menuAction());
         menuFile->addAction(actionOpen);
         menuFile->addAction(actionSave);
         menuFile->addSeparator();
@@ -84,6 +96,8 @@ public:
         menuFile->addSeparator();
         menuFile->addAction(actionExit);
         menuEdit->addAction(actionUndo);
+        menuMode->addAction(actionModeFloors);
+        menuMode->addAction(actionModeColumns);
 
         retranslateUi(MainWindowClass);
 
@@ -104,8 +118,11 @@ public:
         actionNext->setShortcut(QApplication::translate("MainWindowClass", "Right", Q_NULLPTR));
         actionUndo->setText(QApplication::translate("MainWindowClass", "Undo", Q_NULLPTR));
         actionUndo->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+Z", Q_NULLPTR));
+        actionModeFloors->setText(QApplication::translate("MainWindowClass", "Floors", Q_NULLPTR));
+        actionModeColumns->setText(QApplication::translate("MainWindowClass", "Columns", Q_NULLPTR));
         menuFile->setTitle(QApplication::translate("MainWindowClass", "File", Q_NULLPTR));
         menuEdit->setTitle(QApplication::translate("MainWindowClass", "Edit", Q_NULLPTR));
+        menuMode->setTitle(QApplication::translate("MainWindowClass", "Mode", Q_NULLPTR));
     } // retranslateUi
 
 };

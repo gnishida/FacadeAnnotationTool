@@ -12,7 +12,7 @@ Canvas::Canvas(QWidget *parent) : QWidget(parent) {
 	ctrlPressed = false;
 	shiftPressed = false;
 
-	line_direction = LINE_HORIZONTAL;
+	mode = MODE_HORIZONTAL;
 }
 
 void Canvas::paintEvent(QPaintEvent *event) {
@@ -21,35 +21,27 @@ void Canvas::paintEvent(QPaintEvent *event) {
 		painter.drawImage(0, 0, image);
 
 		painter.setPen(QPen(QColor(255, 255, 0), 3));
-		for (auto pos : params) {
-			if (line_direction == LINE_HORIZONTAL) {
+		if (mode == MODE_HORIZONTAL) {
+			for (auto pos : floorParams) {
 				painter.drawLine(0, pos * image.height(), image.width(), pos * image.height());
-			}
-			else {
-				painter.drawLine(pos * image.width(), 0, pos * image.width(), 0);
 			}
 		}
-
-		painter.setPen(QPen(QColor(0, 0, 255), 3));
-		for (auto pos : predicted_params) {
-			if (line_direction == LINE_HORIZONTAL) {
-				painter.drawLine(0, pos * image.height(), image.width(), pos * image.height());
-			}
-			else {
-				painter.drawLine(pos * image.width(), 0, pos * image.width(), 0);
+		else {
+			for (auto pos : columnParams) {
+				painter.drawLine(pos * image.width(), 0, pos * image.width(), image.height());
 			}
 		}
 	}
 }
 
 void Canvas::mousePressEvent(QMouseEvent* e) {
-	if (line_direction == LINE_HORIZONTAL) {
+	if (mode == MODE_HORIZONTAL) {
 		float pos = (float)e->y() / image.height();
-		params.push_back(pos);
+		floorParams.push_back(pos);
 	}
 	else {
 		float pos = (float)e->x() / image.width();
-		params.push_back(pos);
+		columnParams.push_back(pos);
 	}
 
 	update();
@@ -66,16 +58,35 @@ void Canvas::loadImage(const QString& filename) {
 	orig_image = QImage(filename);
 	float scale = std::min((float)width() / orig_image.width(), (float)height() / orig_image.height());
 	image = orig_image.scaled(orig_image.width() * scale, orig_image.height() * scale);
-	params.clear();
+	floorParams.clear();
+	columnParams.clear();
 
 	update();
 }
 
 void Canvas::undo() {
-	if (params.size() > 0) {
-		params.pop_back();
-		update();
+	if (mode == MODE_HORIZONTAL) {
+		if (floorParams.size() > 0) {
+			floorParams.pop_back();
+			update();
+		}
 	}
+	else {
+		if (columnParams.size() > 0) {
+			columnParams.pop_back();
+			update();
+		}
+	}
+}
+
+void Canvas::setModeHorizontal() {
+	mode = MODE_HORIZONTAL;
+	update();
+}
+
+void Canvas::setModeVertical() {
+	mode = MODE_VERTICAL;
+	update();
 }
 
 void Canvas::keyPressEvent(QKeyEvent* e) {

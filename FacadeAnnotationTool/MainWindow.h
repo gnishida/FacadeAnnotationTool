@@ -14,16 +14,17 @@ private:
 	Canvas* canvas;
 	QFileInfoList fileInfoList;
 	int curIndex;
-	QMap<QString, std::vector<float>> all_params;
-	QMap<QString, std::vector<float>> all_predicted_params;
+	QMap<QString, std::vector<float>> all_floor_params;
+	QMap<QString, std::vector<float>> all_column_params;
 
 public:
     MainWindow(QWidget *parent = Q_NULLPTR); 
 
 	void loadImage(const QFileInfo& fileinfo);
-	void loadParams();
-	void loadPredictedParams();
-	void saveParams();
+	void loadFloorParams();
+	void loadColumnParams();
+	void saveFloorParams();
+	void saveColumnParams();
 
 public slots:
 	void onOpen();
@@ -31,4 +32,5 @@ public slots:
 	void onNext();
 	void onPrevious();
 	void onUndo();
+	void onModeChanged();
 };

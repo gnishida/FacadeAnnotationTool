@@ -6,14 +6,14 @@
 
 class Canvas : public QWidget {
 private:
-	static enum { LINE_HORIZONTAL = 0, LINE_VERTICAL };
+	static enum { MODE_HORIZONTAL = 0, MODE_VERTICAL };
 
 private:
 	QImage orig_image;
 	QImage image;
-	std::vector<float> params;
-	std::vector<float> predicted_params;
-	int line_direction;
+	std::vector<float> floorParams;
+	std::vector<float> columnParams;
+	int mode;
 
 	bool ctrlPressed;
 	bool shiftPressed;
@@ -27,11 +27,14 @@ protected:
 	void resizeEvent(QResizeEvent *e);
 
 public:
-	void setParams(const std::vector<float>& params) { this->params = params; }
-	void setPredictedParams(const std::vector<float>& params) { this->predicted_params = params; }
-	std::vector<float> getParams() { return params; }
+	void setFloorParams(const std::vector<float>& params) { this->floorParams = params; }
+	void setColumnParams(const std::vector<float>& params) { this->columnParams = params; }
+	std::vector<float> getFloorParams() { return floorParams; }
+	std::vector<float> getColumnParams() { return columnParams; }
 	void loadImage(const QString& filename);
 	void undo();
+	void setModeHorizontal();
+	void setModeVertical();
 	void keyPressEvent(QKeyEvent* e);
 	void keyReleaseEvent(QKeyEvent* e);
 };
