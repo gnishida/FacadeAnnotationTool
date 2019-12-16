@@ -15,7 +15,7 @@ private:
 	QFileInfoList fileInfoList;
 	int curIndex;
 	QMap<QString, std::vector<float>> all_floor_params;
-	QMap<QString, std::vector<float>> all_column_params;
+	QMap<QString, std::vector<std::pair<int, float>>> all_column_params;
 
 public:
     MainWindow(QWidget *parent = Q_NULLPTR); 

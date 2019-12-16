@@ -6,6 +6,7 @@
 #include <QMessageBox>
 #include <QTextStream>
 #include <QResizeEvent>
+#include <algorithm>
 
 
 Canvas::Canvas(QWidget *parent) : QWidget(parent) {
@@ -27,8 +28,24 @@ void Canvas::paintEvent(QPaintEvent *event) {
 			}
 		}
 		else {
-			for (auto pos : columnParams) {
-				painter.drawLine(pos * image.width(), 0, pos * image.width(), image.height());
+			if (floorParams.size() > 0) {
+				std::sort(floorParams.begin(), floorParams.end());
+				int botfloor = floorParams.back() * image.height();
+				int roof = floorParams[0] * image.height();
+
+				painter.drawLine(0, botfloor, image.width(), botfloor);
+				painter.drawLine(0, roof, image.width(), roof);
+
+				for (const auto& param : columnParams) {
+					const int& type = param.first;
+					const float& pos = param.second;
+					if (type == 0) {
+						painter.drawLine(pos * image.width(), roof, pos * image.width(), botfloor);
+					}
+					else {
+						painter.drawLine(pos * image.width(), botfloor, pos * image.width(), image.height());
+					}
+				}
 			}
 		}
 	}
@@ -37,11 +54,26 @@ void Canvas::paintEvent(QPaintEvent *event) {
 void Canvas::mousePressEvent(QMouseEvent* e) {
 	if (mode == MODE_HORIZONTAL) {
 		float pos = (float)e->y() / image.height();
-		floorParams.push_back(pos);
+		if (pos >= 0 && pos <= 1) {
+			floorParams.push_back(pos);
+		}
 	}
 	else {
-		float pos = (float)e->x() / image.width();
-		columnParams.push_back(pos);
+		if (floorParams.size() > 0) {
+			float posx = (float)e->x() / image.width();
+			float posy = (float)e->y() / image.height();
+			float botfloor = floorParams.back();
+			float roof = floorParams[0];
+
+			if (posx >= 0 && posx <= 1) {
+				if (posy >= botfloor) {
+					columnParams.push_back({ 1, posx });
+				}
+				else if (posy < botfloor && posy >= roof) {
+					columnParams.push_back({ 0, posx });
+				}
+			}
+		}
 	}
 
 	update();

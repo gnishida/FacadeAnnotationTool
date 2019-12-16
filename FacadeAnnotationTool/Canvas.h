@@ -12,7 +12,7 @@ private:
 	QImage orig_image;
 	QImage image;
 	std::vector<float> floorParams;
-	std::vector<float> columnParams;
+	std::vector<std::pair<int, float>> columnParams;
 	int mode;
 
 	bool ctrlPressed;
@@ -28,9 +28,9 @@ protected:
 
 public:
 	void setFloorParams(const std::vector<float>& params) { this->floorParams = params; }
-	void setColumnParams(const std::vector<float>& params) { this->columnParams = params; }
+	void setColumnParams(const std::vector<std::pair<int, float>>& params) { this->columnParams = params; }
 	std::vector<float> getFloorParams() { return floorParams; }
-	std::vector<float> getColumnParams() { return columnParams; }
+	std::vector<std::pair<int, float>> getColumnParams() { return columnParams; }
 	void loadImage(const QString& filename);
 	void undo();
 	void setModeHorizontal();
