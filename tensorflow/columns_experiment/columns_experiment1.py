@@ -21,7 +21,7 @@ MODEL_FILE_NAME = "columns_experiment1_model.h5"
 
 DEBUG_DIR = "__debug__"
 
-def augmentation(x, y):
+def augmentation(img, param):
 	height, width, num_channels = x.shape
 	
 	# crop
@@ -31,26 +31,26 @@ def augmentation(x, y):
 	shift_v = 4
 	offset_x = int(random.uniform(0, shift_h * 2))
 	offset_y = int(random.uniform(0, shift_v * 2))
-	x = tf.image.resize_with_crop_or_pad(x, height + shift_v * 2, width + shift_h * 2)
-	x = x[offset_y:offset_y+height, offset_x:offset_x+width,:]
-	y = (y * height + shift_v - offset_y) / height
-	if y < 0 or y > 1:
-		y = 0
+	img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
+	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
+	param = (param * width + shift_h - offset_x) / width
+	if param < 0 or param > 1:
+		param = 0
 	
 	# flip
-	x = tf.image.random_flip_left_right(x)
+	img = tf.image.random_flip_left_right(img)
 		
 	# rotate
 	angle = random.uniform(-0.5, 0.5)
-	x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
-	return x, y
+	return img, param
 	
 
-def standardize_img(x):
-	mean = numpy.mean(x, axis=None, keepdims=True)
-	std = numpy.sqrt(((x - mean)**2).mean(axis=None, keepdims=True))
-	return (x - mean) / std
+def standardize_img(img):
+	mean = numpy.mean(img, axis=None, keepdims=True)
+	std = numpy.sqrt(((img - mean)**2).mean(axis=None, keepdims=True))
+	return (img - mean) / std
 
 
 def load_img(file_path):
@@ -93,41 +93,41 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	for file_path in path_list:	
 		orig_img = load_img(file_path)
 		orig_width = orig_img.shape[1]
-		imgx = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		file_name = os.path.basename(file_path)
 		file_base, file_ext = os.path.splitext(file_path)
 		
-		values = sorted(column_params[file_name])
+		values = sorted(column_params[file_name], reverse = True)
 		values.append(0.0)
 
 		width = orig_width
-		for y in values:
-			actual_y = y * orig_width / width
+		for value in values:
+			actual_value = value * orig_width / width
 			
 			if use_augmentation:
 				for j in range(augmentation_factor):
-					img_tmp, adjusted_y = augmentation(imgx, actual_y)
+					img_tmp, adjusted_value = augmentation(img, actual_value)
 					
 					if debug:
 						output_filename = "{}/{}.png".format(DEBUG_DIR, i)
 						print(output_filename)
-						output_img(img_tmp, adjusted_y, output_filename)
+						output_img(img_tmp, adjusted_value, output_filename)
 										
 					X[i,:,:,:] = standardize_img(img_tmp)
-					Y[i] = adjusted_y
+					Y[i] = adjusted_value
 					i += 1					
 			else:
-				X[i,:,:,:] = standardize_img(imgx)
-				Y[i] = actual_y
+				X[i,:,:,:] = standardize_img(img)
+				Y[i] = actual_value
 				i += 1
 
 			if not all_columns: break
 			
 			# Update image
-			if y > 0:
-				width = int(orig_width * y)
-				imgx = orig_img[:,0:width,:]
-				imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+			if value > 0:
+				width = int(orig_width * value)
+				img = orig_img[:,0:width,:]
+				img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 			
 	if use_shuffle:
 		randomize = numpy.arange(len(X))
@@ -137,14 +137,24 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 
 	return X, Y
 
-def output_img(x, y, filename):
-	print(x.shape)
-	img = Image.fromarray(x.astype(numpy.uint8))
-	w, h = img.size
+def output_img(img, value, filename):
+	print(img.shape)
+	img = Image.fromarray(img.astype(numpy.uint8))
+	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
 	
-	imgdraw.line([(w * y, 0), (w * y, h)], fill = "yellow", width = 3)
-	img.save("{}".format(filename))		
+	imgdraw.line([(width * value, 0), (width * value, height)], fill = "yellow", width = 3)
+	img.save(filename)
+	
+	
+def output_img2(img, values, filename):
+	width, height = img.size
+	imgdraw = ImageDraw.Draw(img)
+	
+	for value in values:
+		imgdraw.line([(width * value, 0), (width * value, height)], fill = "yellow", width = 3)
+	img.save(filename)
+
 		
 def load_annotation(file_path):
 	column_params = {}
@@ -245,10 +255,10 @@ def test(input_dir, model_dir, all_columns, output_dir):
 	# Save the predicted images
 	for i in range(len(path_list)):				
 		print(path_list[i])
-		orig_x = load_img(path_list[i])
-		orig_width = orig_x.shape[1]
+		orig_img = load_img(path_list[i])
+		orig_width = orig_img.shape[1]
 
-		x = cv2.resize(orig_x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		width = orig_width
 		
 		# Repeatedly predict floors
@@ -256,28 +266,22 @@ def test(input_dir, model_dir, all_columns, output_dir):
 		while True:		
 			# Prediction
 			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
-			X[0,:,:,:] = standardize_img(x)
-			y = model.predict(X).flatten()[0]
-			y = numpy.clip(y * width / orig_width, a_min = 0, a_max = 1)
-			if y < 0.05: break
-			Y.append(y)
+			X[0,:,:,:] = standardize_img(img)
+			value = model.predict(X).flatten()[0]
+			value = numpy.clip(value * width / orig_width, a_min = 0, a_max = 1)
+			if value < 0.05: break
+			Y.append(value)
 			
 			if not all_columns: break
 			
 			# Update image
-			width = int(orig_width * y)
-			x = orig_x[:,0:width,:]
-			x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+			width = int(orig_width * value)
+			img = orig_img[:,0:width,:]
+			img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		
 		# Load image
-		file_name = os.path.basename(path_list[i])
-		img = Image.open(path_list[i])
-		w, h = img.size
-		imgdraw = ImageDraw.Draw(img)
-		
-		for y in Y:
-			imgdraw.line([(w * y, 0), (w * y, h)], fill = "yellow", width = 3)
-		img.save("{}/{}".format(output_dir, file_name))
+		file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
+		output_img2(Image.open(path_list[i]), Y, file_name)
 
 
 def main():	
