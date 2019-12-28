@@ -36,10 +36,7 @@ def augmentation(img, param):
 	param = (param * width + shift_h - offset_x) / width
 	if param < 0 or param > 1:
 		param = 0
-	
-	# flip
-	img = tf.image.random_flip_left_right(img)
-		
+			
 	# rotate
 	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
