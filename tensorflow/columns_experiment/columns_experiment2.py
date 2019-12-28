@@ -17,7 +17,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
-MODEL_FILE_NAME = "columns_experiment1_model.h5"
+MODEL_FILE_NAME = "columns_experiment2_model.h5"
 
 DEBUG_DIR = "__debug__"
 
@@ -41,7 +41,7 @@ def augmentation(img, param):
 	img = tf.image.random_flip_left_right(img)
 		
 	# rotate
-	angle = random.uniform(-0.5, 0.5)
+	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
 	return img, param

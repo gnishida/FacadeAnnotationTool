@@ -16,12 +16,12 @@ from tensorflow.keras.callbacks import TensorBoard
 HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
-NUM_CLASSES = 1
-MODEL_FILE_NAME = "columns_experiment1_model.h5"
+NUM_CLASSES = 2
+MODEL_FILE_NAME = "columns_experiment3_model.h5"
 
 DEBUG_DIR = "__debug__"
 
-def augmentation(img, param):
+def augmentation(img, paramR, paramL):
 	height, width, num_channels = img.shape
 	
 	# crop
@@ -33,18 +33,22 @@ def augmentation(img, param):
 	offset_y = int(random.uniform(0, shift_v * 2))
 	img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
 	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
-	param = (param * width + shift_h - offset_x) / width
-	if param < 0 or param > 1:
-		param = 0
+	paramR = (paramR * width + shift_h - offset_x) / width
+	paramL = (paramL * width + shift_h - offset_x) / width
+	if paramR < 0 or paramR > 1:
+		paramR = 0
+	
+	if paramL < 0 or paramL > 1:
+		paramL = 0
 	
 	# flip
 	img = tf.image.random_flip_left_right(img)
 		
 	# rotate
-	angle = random.uniform(-0.5, 0.5)
+	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
-	return img, param
+	return img, paramR, paramL
 	
 
 def standardize_img(img):
@@ -86,7 +90,7 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 				num_images += 1
 
 	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-	Y = numpy.zeros((num_images), dtype=float)
+	Y = numpy.zeros((num_images, 2), dtype=float)
 	
 	# Load images
 	i = 0
@@ -99,33 +103,39 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 		
 		values = sorted(column_params[file_name], reverse = True)
 		values.append(0.0)
+		values.append(0.0)
 
 		width = orig_width
-		for value in values:
-			actual_value = value * orig_width / width
+		for a in range(0, len(values), 2):
+			valueR = values[a]
+			valueL = values[a + 1]
+			actual_valueR = valueR * orig_width / width
+			actual_valueL = valueL * orig_width / width
 			
 			if use_augmentation:
 				for j in range(augmentation_factor):
-					img_tmp, adjusted_value = augmentation(img, actual_value)
+					img_tmp, adjusted_valueR, adjusted_valueL = augmentation(img, actual_valueR, actual_valueL)
 					
 					if debug:
 						output_filename = "{}/{}.png".format(DEBUG_DIR, i)
 						print(output_filename)
-						output_img(img_tmp, adjusted_value, output_filename)
+						output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
 										
 					X[i,:,:,:] = standardize_img(img_tmp)
-					Y[i] = adjusted_value
-					i += 1					
+					Y[i, 0] = adjusted_valueR
+					Y[i, 1] = adjusted_valueL
+					i += 1
 			else:
 				X[i,:,:,:] = standardize_img(img)
-				Y[i] = actual_value
+				Y[i, 0] = actual_valueR
+				Y[i, 1] = actual_valueL
 				i += 1
 
 			if not all_columns: break
 			
 			# Update image
-			if value > 0:
-				width = int(orig_width * value)
+			if valueL > 0:
+				width = int(orig_width * valueL)
 				img = orig_img[:,0:width,:]
 				img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 			
@@ -137,13 +147,14 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 
 	return X, Y
 
-def output_img(img, value, filename):
+def output_img(img, valueR, valueL, filename):
 	print(img.shape)
 	img = Image.fromarray(img.astype(numpy.uint8))
 	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
 	
-	imgdraw.line([(width * value, 0), (width * value, height)], fill = "yellow", width = 3)
+	imgdraw.line([(width * valueR, 0), (width * valueR, height)], fill = "yellow", width = 3)
+	imgdraw.line([(width * valueL, 0), (width * valueL, height)], fill = "yellow", width = 3)
 	img.save(filename)
 	
 	
@@ -151,8 +162,11 @@ def output_img2(img, values, filename):
 	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
 	
-	for value in values:
-		imgdraw.line([(width * value, 0), (width * value, height)], fill = "yellow", width = 3)
+	for a in range(0, len(values), 2):
+		valueR = values[a]
+		valueL = values[a + 1]
+		imgdraw.line([(width * valueR, 0), (width * valueR, height)], fill = "yellow", width = 3)
+		imgdraw.line([(width * valueL, 0), (width * valueL, height)], fill = "yellow", width = 3)
 	img.save(filename)
 
 		
@@ -267,15 +281,18 @@ def test(input_dir, model_dir, all_columns, output_dir):
 			# Prediction
 			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
 			X[0,:,:,:] = standardize_img(img)
-			value = model.predict(X).flatten()[0]
-			value = numpy.clip(value * width / orig_width, a_min = 0, a_max = 1)
-			if value < 0.05: break
-			Y.append(value)
+			valueR = model.predict(X).flatten()[0]
+			valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
+			valueL = model.predict(X).flatten()[1]
+			valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
+			if valueL < 0.05: break
+			Y.append(valueR)
+			Y.append(valueL)
 			
 			if not all_columns: break
 			
 			# Update image
-			width = int(orig_width * value)
+			width = int(orig_width * valueL)
 			img = orig_img[:,0:width,:]
 			img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		
