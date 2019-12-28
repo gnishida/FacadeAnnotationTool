@@ -2,3 +2,4 @@ logs/
 out/*
 **/out
 *.h5
+**/__debug__
