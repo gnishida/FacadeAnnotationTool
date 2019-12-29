@@ -35,18 +35,12 @@ def augmentation(img, paramR, paramL):
 	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
 	paramR = (paramR * width + shift_h - offset_x) / width
 	paramL = (paramL * width + shift_h - offset_x) / width
-	if paramR < 0:
-		paramR = 0
-	if paramR > 1:
-		paramR = 1
 	
-	if paramL < 0:
-		paramL = 0
-	if paramL > 1:
-		paramL = 1
-			
+	paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
+	paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
+				
 	# rotate
-	angle = random.uniform(-0.1, 0.1)
+	angle = random.uniform(-0.5, 0.5)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
 	return img, paramR, paramL
@@ -149,7 +143,6 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	return X, Y
 
 def output_img(img, valueR, valueL, filename):
-	print(img.shape)
 	img = Image.fromarray(img.astype(numpy.uint8))
 	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
@@ -220,6 +213,7 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
 	X, Y = load_imgs(path_list, column_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
 	print(X.shape)
+	if debug: return
 	
 	# Build model
 	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
@@ -327,6 +321,10 @@ def main():
 	if args.debug:
 		if not os.path.isdir(DEBUG_DIR):
 			os.mkdir(DEBUG_DIR)
+		else:
+			files = glob.glob("{}/*".format(DEBUG_DIR))
+			for f in files:
+				os.remove(f)
 
 	if args.mode == "train":
 		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
