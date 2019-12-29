@@ -17,7 +17,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
-MODEL_FILE_NAME = "columns_experiment8_model.h5"
+MODEL_FILE_NAME = "columns_experiment9_model.h5"
 
 DEBUG_DIR = "__debug__"
 
@@ -25,7 +25,7 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     height, width, num_channels = img.shape
     
     #crop
-    min_height = 0.40
+    min_height = 0.75
     vertical_size = random.uniform(min_height, 1)
     crop_pos = random.uniform(0, 1 - vertical_size)
     top = int(crop_pos * height)
@@ -46,7 +46,7 @@ def augmentation(img, paramR, paramL, windowR, windowL):
 
     
     # rotate
-    angle = random.uniform(-0.5, 0.5)
+    angle = random.uniform(-0.1, 0.1)
     img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 
     return img, paramR, paramL
