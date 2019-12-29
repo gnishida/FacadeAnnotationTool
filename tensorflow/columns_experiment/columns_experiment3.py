@@ -35,15 +35,16 @@ def augmentation(img, paramR, paramL):
 	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
 	paramR = (paramR * width + shift_h - offset_x) / width
 	paramL = (paramL * width + shift_h - offset_x) / width
-	if paramR < 0 or paramR > 1:
+	if paramR < 0:
 		paramR = 0
+	if paramR > 1:
+		paramR = 1
 	
-	if paramL < 0 or paramL > 1:
+	if paramL < 0:
 		paramL = 0
-	
-	# flip
-	img = tf.image.random_flip_left_right(img)
-		
+	if paramL > 1:
+		paramL = 1
+			
 	# rotate
 	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
@@ -80,12 +81,12 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 		file_name = os.path.basename(file_path)
 		if use_augmentation:
 			if all_columns:
-				num_images += (len(column_params[file_name]) + 1) * augmentation_factor
+				num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
 			else:
 				num_images += augmentation_factor
 		else:
 			if all_columns:
-				num_images += len(column_params[file_name]) + 1
+				num_images += int(len(column_params[file_name]) / 2) + 1
 			else:
 				num_images += 1
 
