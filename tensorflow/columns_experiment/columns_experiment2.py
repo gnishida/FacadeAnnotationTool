@@ -34,8 +34,7 @@ def augmentation(img, param):
 	img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
 	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
 	param = (param * width + shift_h - offset_x) / width
-	if param < 0 or param > 1:
-		param = 0
+	param = numpy.clip(param, a_min = 0, a_max = 1)
 			
 	# rotate
 	angle = random.uniform(-0.1, 0.1)
