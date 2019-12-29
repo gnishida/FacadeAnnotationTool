@@ -270,10 +270,11 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 def test(input_dir, model_dir, all_columns, output_dir):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
-
+	floor_params = load_annotation_floor("floor_annotation.txt")
+	
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, all_columns = all_columns)
+	X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns)
 		  
 	# Load the model
 	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
