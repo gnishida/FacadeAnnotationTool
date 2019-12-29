@@ -25,18 +25,18 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     height, width, num_channels = img.shape
     
     #crop
-    #min_height = 0.40
-    #vertical_size = random.uniform(min_height, 1)
-    #crop_pos = random.uniform(0, 1 - vertical_size)
-    #top = int(crop_pos * height)
-    #bottom = int((crop_pos + vertical_size) * height)
+    min_height = 0.40
+    vertical_size = random.uniform(min_height, 1)
+    crop_pos = random.uniform(0, 1 - vertical_size)
+    top = int(crop_pos * height)
+    bottom = int((crop_pos + vertical_size) * height)
     left = int(random.uniform(0, windowL) * width)
     right = int(random.uniform((windowR + 1) / 2, 1) * width)
     new_width = right - left
     #shift_h = 4
     #shift_v = 4
     #img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
-    img = img[:, left:right,:]
+    img = img[top:bottom, left:right,:]
     
     paramR = (paramR * width - left) / (right - left)
     paramL = (paramL * width - left) / (right - left)
