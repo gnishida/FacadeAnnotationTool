@@ -37,17 +37,10 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     #shift_v = 4
     #img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
     img = img[:, left:right,:]
-    if (random.uniform(0, 2) >= 1):
-        img = numpy.flip(img, 1)
-        paramR = (new_width - paramR * width + left) / new_width
-        paramL = (new_width - paramL * width + left) / new_width
-    else:
-        paramR = (paramR * width - left) / new_width
-        paramL = (paramL * width - left) / new_width
-
-    # flip
     
-
+    paramR = (paramR * width - left) / (right - left)
+    paramL = (paramL * width - left) / (right - left)
+    
     paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
     paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
 
@@ -88,12 +81,12 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
         file_name = os.path.basename(file_path)
         if use_augmentation:
             if all_columns:
-                num_images += (len(column_params[file_name]) + 1) * augmentation_factor
+                num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
             else:
                 num_images += augmentation_factor
         else:
             if all_columns:
-                num_images += len(column_params[file_name]) + 1
+                num_images += int(len(column_params[file_name]) / 2) + 1
             else:
                 num_images += 1
 
@@ -104,18 +97,19 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
     i = 0
     for file_path in path_list:	
         orig_img = load_img(file_path)
-        orig_height = orig_img.shape[0]
-        orig_width = orig_img.shape[1]
+        orig_height, orig_width, channels = orig_img.shape	
+        
+        # Crop sky and shop	
+        floors = sorted(floor_params[file_name])	
+        roof = int(floors[0] * orig_height)	
+        shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)	
+        orig_img = orig_img[roof:shop,:,:]	
+        orig_height, orig_width, channels = orig_img.shape	
+        
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         file_name = os.path.basename(file_path)
         file_base, file_ext = os.path.splitext(file_path)
         
-        floors = sorted(floor_params[file_name])
-        roof = floors[0]
-        shop = floors[len(floor_params[file_name]) - 1]
-        roof = int(roof * HEIGHT)
-        shop = int(shop * HEIGHT)
-        img = img[roof:shop,:,:]
         values = sorted(column_params[file_name], reverse = True)
         values.append(0.0)
         values.append(0.0)
@@ -148,7 +142,7 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                     Y[i, 1] = adjusted_valueL
                     i += 1
             else:
-                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC) 
+                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
                 X[i,:,:,:] = standardize_img(img_tmp)
                 Y[i, 0] = actual_valueR
                 Y[i, 1] = actual_valueL
