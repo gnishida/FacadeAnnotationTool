@@ -17,36 +17,39 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
-MODEL_FILE_NAME = "columns_experiment5_model.h5"
+MODEL_FILE_NAME = "columns_experiment7_model.h5"
 
 DEBUG_DIR = "__debug__"
 
 def augmentation(img, paramR, paramL, windowR, windowL):
-	height, width, num_channels = img.shape
-	
-	#crop
-	#min_height = 0.40
-	#vertical_size = random.uniform(min_height, 1)
-	#crop_pos = random.uniform(0, 1 - vertical_size)
-	#top = int(crop_pos * height)
-	#bottom = int((crop_pos + vertical_size) * height)
-	left = int(random.uniform(0, windowL) * width)
-	right = int(random.uniform((windowR + 1) / 2, 1) * width)
-	#shift_h = 4
-	#shift_v = 4
-	#img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
-	img = img[:, left:right,:]
-	paramR = (paramR * width - left) / (right - left)
-	paramL = (paramL * width - left) / (right - left)
+    height, width, num_channels = img.shape
+    
+    #crop
+    min_height = 0.40
+    vertical_size = random.uniform(min_height, 1)
+    crop_pos = random.uniform(0, 1 - vertical_size)
+    top = int(crop_pos * height)
+    bottom = int((crop_pos + vertical_size) * height)
+    left = int(random.uniform(0, windowL / 2) * width)
+    right = int(random.uniform((windowR + 1) / 2, 1) * width)
+    new_width = right - left
+    #shift_h = 4
+    #shift_v = 4
+    #img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
+    img = img[top:bottom, left:right,:]
+    
+    paramR = (paramR * width - left) / (right - left)
+    paramL = (paramL * width - left) / (right - left)
+    
+    paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
+    paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
 
-	paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
-	paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
-	
-	# rotate
-	angle = random.uniform(-0.1, 0.1)
-	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
-	
-	return img, paramR, paramL
+    
+    # rotate
+    angle = random.uniform(-1, 1)
+    img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
+
+    return img, paramR, paramL
 	
 
 def standardize_img(img):
@@ -72,36 +75,36 @@ def load_img(file_path):
 
 
 def load_imgs(path_list, column_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
-	# Calculate number of images
-	num_images = 0
-	for file_path in path_list:
-		file_name = os.path.basename(file_path)
-		if use_augmentation:
-			if all_columns:
-				num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
-			else:
-				num_images += augmentation_factor
-		else:
-			if all_columns:
-				num_images += int(len(column_params[file_name]) / 2) + 1
-			else:
-				num_images += 1
+    # Calculate number of images
+    num_images = 0
+    for file_path in path_list:
+        file_name = os.path.basename(file_path)
+        if use_augmentation:
+            if all_columns:
+                num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
+            else:
+                num_images += augmentation_factor
+        else:
+            if all_columns:
+                num_images += int(len(column_params[file_name]) / 2) + 1
+            else:
+                num_images += 1
 
-	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-	Y = numpy.zeros((num_images, 2), dtype=float)
-	
-	# Load images
-	i = 0
-	for file_path in path_list:	
+    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
+    Y = numpy.zeros((num_images, 2), dtype=float)
+
+    # Load images
+    i = 0
+    for file_path in path_list:	
         orig_img = load_img(file_path)
-        orig_height, orig_width, channels = orig_img.shape
+        orig_height, orig_width, channels = orig_img.shape	
         
-        # Crop sky and shop
-        floors = sorted(floor_params[file_name])
-        roof = int(floors[0] * orig_height)
-        shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)
-        orig_img = orig_img[roof:shop,:,:]
-        orig_height, orig_width, channels = orig_img.shape
+        # Crop sky and shop	
+        floors = sorted(floor_params[file_name])	
+        roof = int(floors[0] * orig_height)	
+        shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)	
+        orig_img = orig_img[roof:shop,:,:]	
+        orig_height, orig_width, channels = orig_img.shape	
         
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         file_name = os.path.basename(file_path)
@@ -133,7 +136,7 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                         output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                         print(output_filename)
                         output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
-                                        
+                        
                     X[i,:,:,:] = standardize_img(img_tmp)
                     Y[i, 0] = adjusted_valueR
                     Y[i, 1] = adjusted_valueL
@@ -153,13 +156,13 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                 img = orig_img[:,0:width,:]
                 #img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
             
-	if use_shuffle:
-		randomize = numpy.arange(len(X))
-		numpy.random.shuffle(randomize)
-		X = X[randomize]
-		Y = Y[randomize]
+    if use_shuffle:
+        randomize = numpy.arange(len(X))
+        numpy.random.shuffle(randomize)
+        X = X[randomize]
+        Y = Y[randomize]
 
-	return X, Y
+    return X, Y
 
 def output_img(img, valueR, valueL, filename):
 	print(img.shape)
