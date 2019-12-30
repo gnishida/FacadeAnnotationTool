@@ -17,7 +17,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 1
-MODEL_FILE_NAME = "all_floors_experiment1_model.h5"
+MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
 
@@ -149,16 +149,20 @@ def output_img(x, y, filename):
 def load_annotation(file_path):
 	params = {}
 	file = open(file_path, "r")
-	for line in file.readlines():
-		line = line.strip()
-		values = []
-		data = line.split(',')
-		if len(data) > 1:
-			for i in range(1,len(data)):
-				values.append(float(data[i].strip()))
-			params[data[0]] = values
+	while True:
+		filename = file.readline().strip()
+		if len(filename) == 0: break
 		
-	return params
+		floors = file.readline().strip()
+		
+		values = []
+		data = floors.split(',')
+		if len(data) > 0:
+			for i in range(len(data)):
+				values.append(float(data[i].strip()))
+			floor_params[filename] = values
+			
+	return floor_params
 
 
 def build_model(int_shape, num_params, learning_rate):
@@ -184,7 +188,7 @@ def build_model(int_shape, num_params, learning_rate):
 
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_floors, output_dir, debug):
 	# Load parameters
-	params = load_annotation("facade_annotation.txt")
+	params = load_annotation("floor_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
@@ -215,7 +219,7 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 
 def test(input_dir, model_dir, all_floors, output_dir):
 	# Load parameters
-	params = load_annotation("facade_annotation.txt")
+	params = load_annotation("floor_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
