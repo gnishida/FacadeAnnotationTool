@@ -97,7 +97,7 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
     i = 0
     for file_path in path_list:
         file_name = os.path.basename(file_path)
-    
+
         orig_img = load_img(file_path)
         orig_height, orig_width, channels = orig_img.shape	
         
