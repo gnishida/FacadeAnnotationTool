@@ -72,27 +72,29 @@ def load_img(file_path):
 
 
 def load_imgs(path_list, column_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
-	# Calculate number of images
-	num_images = 0
-	for file_path in path_list:
-		file_name = os.path.basename(file_path)
-		if use_augmentation:
-			if all_columns:
-				num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
-			else:
-				num_images += augmentation_factor
-		else:
-			if all_columns:
-				num_images += int(len(column_params[file_name]) / 2) + 1
-			else:
-				num_images += 1
+    # Calculate number of images
+    num_images = 0
+    for file_path in path_list:
+        file_name = os.path.basename(file_path)
+        if use_augmentation:
+            if all_columns:
+                num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
+            else:
+                num_images += augmentation_factor
+        else:
+            if all_columns:
+                num_images += int(len(column_params[file_name]) / 2) + 1
+            else:
+                num_images += 1
 
-	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-	Y = numpy.zeros((num_images, 2), dtype=float)
-	
-	# Load images
-	i = 0
-	for file_path in path_list:	
+    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
+    Y = numpy.zeros((num_images, 2), dtype=float)
+
+    # Load images
+    i = 0
+    for file_path in path_list:
+        file_name = os.path.basename(file_path)
+        
         orig_img = load_img(file_path)
         orig_height, orig_width, channels = orig_img.shape
         
@@ -104,7 +106,6 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
         orig_height, orig_width, channels = orig_img.shape
         
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-        file_name = os.path.basename(file_path)
         file_base, file_ext = os.path.splitext(file_path)
         
         values = sorted(column_params[file_name], reverse = True)
@@ -153,13 +154,13 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                 img = orig_img[:,0:width,:]
                 #img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
             
-	if use_shuffle:
-		randomize = numpy.arange(len(X))
-		numpy.random.shuffle(randomize)
-		X = X[randomize]
-		Y = Y[randomize]
+    if use_shuffle:
+        randomize = numpy.arange(len(X))
+        numpy.random.shuffle(randomize)
+        X = X[randomize]
+        Y = Y[randomize]
 
-	return X, Y
+    return X, Y
 
 def output_img(img, valueR, valueL, filename):
 	print(img.shape)
