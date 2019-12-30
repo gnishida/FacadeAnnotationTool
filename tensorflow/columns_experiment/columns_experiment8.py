@@ -144,6 +144,11 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                     i += 1
             else:
                 img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+                if debug:
+                        output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+                        print(output_filename)
+                        output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
+                        
                 X[i,:,:,:] = standardize_img(img_tmp)
                 Y[i, 0] = actual_valueR
                 Y[i, 1] = actual_valueL
@@ -246,95 +251,97 @@ def build_model(int_shape, num_params, learning_rate):
   
 
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
-	# Load parameters
-	column_params = load_annotation("column_annotation.txt")
-	floor_params = load_annotation_floor("floor_annotation.txt")
+    # Load parameters
+    column_params = load_annotation("column_annotation.txt")
+    floor_params = load_annotation_floor("floor_annotation.txt")
 
-	# Split the tensor into train and test dataset
-	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
-	print(X.shape)
-	
-	# Build model
-	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
+    # Split the tensor into train and test dataset
+    path_list = glob.glob("{}/*.jpg".format(input_dir))
+    X, Y = load_imgs(path_list, column_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
+    print(X.shape)
+    if debug: return
 
-	# Setup for Tensorboard
-	log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-	file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
-	file_writer.set_as_default()
-	tensorboard_callback = TensorBoard(
-		log_dir=log_dir,
-		update_freq='batch',
-		histogram_freq=1)
+    # Build model
+    model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
 
-	# Training model
-	model.fit(X, Y,
-		epochs=num_epochs,
-		validation_split = 0.2,
-		callbacks=[tensorboard_callback])
+    # Setup for Tensorboard
+    log_dir="logs\\fit\\" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_writer = tf.summary.create_file_writer(log_dir + "\\metrics")
+    file_writer.set_as_default()
+    tensorboard_callback = TensorBoard(
+        log_dir=log_dir,
+        update_freq='batch',
+        histogram_freq=1)
 
-	# Save the model
-	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
+    # Training model
+    model.fit(X, Y,
+        epochs=num_epochs,
+        validation_split = 0.2,
+        callbacks=[tensorboard_callback])
+
+    # Save the model
+    model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
-def test(input_dir, model_dir, all_columns, output_dir):
-	# Load parameters
-	column_params = load_annotation("column_annotation.txt")
-	floor_params = load_annotation_floor("floor_annotation.txt")
+def test(input_dir, model_dir, all_columns, output_dir, debug):
+    # Load parameters
+    column_params = load_annotation("column_annotation.txt")
+    floor_params = load_annotation_floor("floor_annotation.txt")
 
-	# Split the tensor into train and test dataset
-	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns)
-		  
-	# Load the model
-	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
-		
-	# Evaluation
-	model.evaluate(X, Y)
-	
-	# Prediction
-	predictedY = model.predict(X).flatten()
+    # Split the tensor into train and test dataset
+    path_list = glob.glob("{}/*.jpg".format(input_dir))
+    X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
+    if debug: return
 
-	# Write the prediction to a file
-	file = open("{}/prediction.txt".format(output_dir), "w")
-	for i in range(len(path_list)):
-		file_name = os.path.basename(path_list[i])
-		file.write("{},{}\n".format(file_name, predictedY[i]))
-	file.close()
+    # Load the model
+    model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
+        
+    # Evaluation
+    model.evaluate(X, Y)
 
-	# Save the predicted images
-	for i in range(len(path_list)):				
-		print(path_list[i])
-		orig_img = load_img(path_list[i])
-		orig_width = orig_img.shape[1]
+    # Prediction
+    predictedY = model.predict(X).flatten()
 
-		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		width = orig_width
-		
-		# Repeatedly predict floors
-		Y = []
-		while True:		
-			# Prediction
-			X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
-			X[0,:,:,:] = standardize_img(img)
-			valueR = model.predict(X).flatten()[0]
-			valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
-			valueL = model.predict(X).flatten()[1]
-			valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
-			if valueL < 0.05: break
-			Y.append(valueR)
-			Y.append(valueL)
-			
-			if not all_columns: break
-			
-			# Update image
-			width = int(orig_width * valueL)
-			img = orig_img[:,0:width,:]
-			img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		
-		# Load image
-		file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
-		output_img2(Image.open(path_list[i]), Y, file_name)
+    # Write the prediction to a file
+    file = open("{}/prediction.txt".format(output_dir), "w")
+    for i in range(len(path_list)):
+        file_name = os.path.basename(path_list[i])
+        file.write("{},{}\n".format(file_name, predictedY[i]))
+    file.close()
+
+    # Save the predicted images
+    for i in range(len(path_list)):				
+        print(path_list[i])
+        orig_img = load_img(path_list[i])
+        orig_width = orig_img.shape[1]
+
+        img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        width = orig_width
+        
+        # Repeatedly predict floors
+        Y = []
+        while True:		
+            # Prediction
+            X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+            X[0,:,:,:] = standardize_img(img)
+            valueR = model.predict(X).flatten()[0]
+            valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
+            valueL = model.predict(X).flatten()[1]
+            valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
+            if valueL < 0.05: break
+            Y.append(valueR)
+            Y.append(valueL)
+            
+            if not all_columns: break
+            
+            # Update image
+            width = int(orig_width * valueL)
+            img = orig_img[:,0:width,:]
+            img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        
+        # Load image
+        file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
+        output_img2(Image.open(path_list[i]), Y, file_name)
 
 
 def main():	
@@ -362,11 +369,15 @@ def main():
 	if args.debug:
 		if not os.path.isdir(DEBUG_DIR):
 			os.mkdir(DEBUG_DIR)
+        else:
+            files = glob.glob("{}/*".format(DEBUG_DIR))
+            for f in files:
+                os.remove(f)
 
 	if args.mode == "train":
 		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
 	elif args.mode == "test":
-		test(args.input_dir, args.model_dir, args.all_columns, args.output_dir)
+		test(args.input_dir, args.model_dir, args.all_columns, args.output_dir, args.debug)
 	else:
 		print("Invalid mode is specified {}".format(args.mode))
 		exit(1)
