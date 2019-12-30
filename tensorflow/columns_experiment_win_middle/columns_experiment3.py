@@ -65,7 +65,7 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(path_list, column_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
+def load_imgs(path_list, column_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
 	# Calculate number of images
 	num_images = 0
 	for file_path in path_list:
@@ -88,7 +88,15 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	i = 0
 	for file_path in path_list:	
 		orig_img = load_img(file_path)
-		orig_width = orig_img.shape[1]
+		orig_height, orig_width, channels = orig_img.shape
+		
+		# Crop sky and shop
+		floors = sorted(floor_params[file_name])
+		roof = int(floors[0] * orig_height)
+		shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)
+		orig_img = orig_img[roof:shop,:,:]
+		orig_height, orig_width, channels = orig_img.shape
+		
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		file_name = os.path.basename(file_path)
 		file_base, file_ext = os.path.splitext(file_path)
@@ -134,7 +142,6 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	return X, Y
 
 def output_img(img, value, filename):
-	print(img.shape)
 	img = Image.fromarray(img.astype(numpy.uint8))
 	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
@@ -172,6 +179,25 @@ def load_annotation(file_path):
 	return column_params
 
 
+def load_annotation_floor(file_path):
+	floor_params = {}
+	file = open(file_path, "r")
+	while True:
+		filename = file.readline().strip()
+		if len(filename) == 0: break
+	
+		floors = file.readline().strip()
+	
+		values = []
+		data = floors.split(',')
+		if len(data) > 0:
+			for i in range(len(data)):
+				values.append(float(data[i].strip()))
+			floor_params[filename] = values
+		
+	return floor_params
+	
+
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
 		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
@@ -196,10 +222,11 @@ def build_model(int_shape, num_params, learning_rate):
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
-
+	floor_params = load_annotation_floor("floor_annotation.txt")
+	
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
+	X, Y = load_imgs(path_list, column_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
 	print(X.shape)
 	
 	# Build model
@@ -227,10 +254,11 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 def test(input_dir, model_dir, all_columns, output_dir):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
-
+	floor_params = load_annotation_floor("floor_annotation.txt")
+	
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, all_columns = all_columns)
+	X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns)
 		  
 	# Load the model
 	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
