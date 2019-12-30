@@ -87,19 +87,30 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
 	# Load images
 	i = 0
 	for file_path in path_list:	
+		file_name = os.path.basename(file_path)
+
 		orig_img = load_img(file_path)
-		orig_height, orig_width, channels = orig_img.shape
-		
+		orig_height, orig_width, channels = orig_img.shape		
+
 		# Crop sky and shop
 		floors = sorted(floor_params[file_name])
 		roof = int(floors[0] * orig_height)
 		shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)
 		orig_img = orig_img[roof:shop,:,:]
 		orig_height, orig_width, channels = orig_img.shape
-		
+				
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		file_name = os.path.basename(file_path)
 		file_base, file_ext = os.path.splitext(file_path)
+		
+		if file_name == "monge_101.jpg":
+			print(file_path)
+			print(floors)
+			print(roof)
+			print(shop)
+			tmp = load_img(file_path)
+			output_img(tmp, 0, "outfile_orig.png")
+			output_img(orig_img, 0, "outfile.png")
+
 		
 		values = sorted(column_params[file_name], reverse = True)
 		values.append(0.0)
@@ -121,6 +132,11 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
 					Y[i] = adjusted_value
 					i += 1					
 			else:
+				if debug:
+					output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+					print(output_filename)
+					output_img(img, actual_value, output_filename)
+					
 				X[i,:,:,:] = standardize_img(img)
 				Y[i] = actual_value
 				i += 1
@@ -228,6 +244,7 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
 	X, Y = load_imgs(path_list, column_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
 	print(X.shape)
+	if debug: return
 	
 	# Build model
 	model = build_model((HEIGHT, WIDTH, NUM_CHANNELS), NUM_CLASSES, learning_late)
@@ -251,15 +268,16 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
-def test(input_dir, model_dir, all_columns, output_dir):
+def test(input_dir, model_dir, all_columns, output_dir, debug):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
 	floor_params = load_annotation_floor("floor_annotation.txt")
 	
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
-	X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns)
-		  
+	X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
+	if debug: return
+	
 	# Load the model
 	model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
 		
@@ -337,7 +355,7 @@ def main():
 	if args.mode == "train":
 		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
 	elif args.mode == "test":
-		test(args.input_dir, args.model_dir, args.all_columns, args.output_dir)
+		test(args.input_dir, args.model_dir, args.all_columns, args.output_dir, args.debug)
 	else:
 		print("Invalid mode is specified {}".format(args.mode))
 		exit(1)
