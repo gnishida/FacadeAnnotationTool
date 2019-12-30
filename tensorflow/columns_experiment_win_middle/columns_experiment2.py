@@ -304,6 +304,10 @@ def main():
 	if args.debug:
 		if not os.path.isdir(DEBUG_DIR):
 			os.mkdir(DEBUG_DIR)
+		else:
+			files = glob.glob("{}/*".format(DEBUG_DIR))
+			for f in files:
+				os.remove(f)
 
 	if args.mode == "train":
 		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
