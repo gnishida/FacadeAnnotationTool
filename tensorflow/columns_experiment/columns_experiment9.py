@@ -214,22 +214,22 @@ def load_annotation(file_path):
 	return column_params
 
 def load_annotation_floor(file_path):
-	floor_params = {}
-	file = open(file_path, "r")
-	while True:
-		filename = file.readline().strip()
-		if len(filename) == 0: break
+    floor_params = {}
+    file = open(file_path, "r")
+    while True:
+        filename = file.readline().strip()
+        if len(filename) == 0: break
         
         floors = file.readline().strip()
         
         values = []
-		data = floors.split(',')
-		if len(data) > 0:
-			for i in range(len(data)):
-				values.append(float(data[i].strip()))
-			floor_params[filename] = values
-		
-	return floor_params
+        data = floors.split(',')
+        if len(data) > 0:
+            for i in range(len(data)):
+                values.append(float(data[i].strip()))
+            floor_params[filename] = values
+        
+    return floor_params
 
 
 def build_model(int_shape, num_params, learning_rate):
@@ -348,42 +348,42 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
 
 
 def main():	
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--mode', required=True, choices=["train", "test"])
-	parser.add_argument('--input_dir', required=True, help="path to folder containing images")
-	parser.add_argument('--output_dir', default="out", help="where to put output files")
-	parser.add_argument('--model_dir', default="models", help="path to folder containing models")
-	parser.add_argument('--num_epochs', type=int, default=10)
-	parser.add_argument('--learning_rate', type=float, default=0.0001)
-	parser.add_argument('--augmentation_factor', type=int, default=100)
-	parser.add_argument('--all_columns', action="store_true", help="Use all floors")
-	parser.add_argument('--debug', action="store_true", help="Output debug information")
-	args = parser.parse_args()	
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', required=True, choices=["train", "test"])
+    parser.add_argument('--input_dir', required=True, help="path to folder containing images")
+    parser.add_argument('--output_dir', default="out", help="where to put output files")
+    parser.add_argument('--model_dir', default="models", help="path to folder containing models")
+    parser.add_argument('--num_epochs', type=int, default=10)
+    parser.add_argument('--learning_rate', type=float, default=0.0001)
+    parser.add_argument('--augmentation_factor', type=int, default=100)
+    parser.add_argument('--all_columns', action="store_true", help="Use all floors")
+    parser.add_argument('--debug', action="store_true", help="Output debug information")
+    args = parser.parse_args()	
 
-	# Create output directory
-	if not os.path.isdir(args.output_dir):
-		os.mkdir(args.output_dir)
-		
-	# Create model directory
-	if not os.path.isdir(args.model_dir):
-		os.mkdir(args.model_dir)
+    # Create output directory
+    if not os.path.isdir(args.output_dir):
+        os.mkdir(args.output_dir)
+        
+    # Create model directory
+    if not os.path.isdir(args.model_dir):
+        os.mkdir(args.model_dir)
 
-	# Create debug directory
-	if args.debug:
-		if not os.path.isdir(DEBUG_DIR):
-			os.mkdir(DEBUG_DIR)
+    # Create debug directory
+    if args.debug:
+        if not os.path.isdir(DEBUG_DIR):
+            os.mkdir(DEBUG_DIR)
         else:
             files = glob.glob("{}/*".format(DEBUG_DIR))
             for f in files:
                 os.remove(f)
 
-	if args.mode == "train":
-		train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
-	elif args.mode == "test":
-		test(args.input_dir, args.model_dir, args.all_columns, args.output_dir, args.debug)
-	else:
-		print("Invalid mode is specified {}".format(args.mode))
-		exit(1)
+    if args.mode == "train":
+        train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
+    elif args.mode == "test":
+        test(args.input_dir, args.model_dir, args.all_columns, args.output_dir, args.debug)
+    else:
+        print("Invalid mode is specified {}".format(args.mode))
+        exit(1)
 	
 
 if __name__== "__main__":
