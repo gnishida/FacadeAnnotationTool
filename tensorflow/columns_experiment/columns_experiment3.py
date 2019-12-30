@@ -90,10 +90,11 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	# Load images
 	i = 0
 	for file_path in path_list:	
+        file_name = os.path.basename(file_path)
+    
 		orig_img = load_img(file_path)
 		orig_width = orig_img.shape[1]
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		file_name = os.path.basename(file_path)
 		file_base, file_ext = os.path.splitext(file_path)
 		
 		values = sorted(column_params[file_name], reverse = True)
