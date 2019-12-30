@@ -46,12 +46,18 @@ void MainWindow::loadFloorParams() {
 		file.open(QIODevice::ReadOnly);
 		QTextStream in(&file);
 		while (!in.atEnd()) {
-			QStringList list = in.readLine().split(",");
+			QString filename = in.readLine();
+			if (filename.isEmpty()) break;
 
-			for (int i = 1; i < list.size(); ++i) {
-				all_floor_params[list[0]].push_back(list[i].toFloat());
+			QString line = in.readLine();
+			if (!line.isEmpty()) {
+				QStringList list = line.split(",");
+
+				for (int i = 0; i < list.size(); ++i) {
+					all_floor_params[filename].push_back(list[i].toFloat());
+				}
+				std::sort(all_floor_params[filename].begin(), all_floor_params[filename].end());
 			}
-			std::sort(all_floor_params[list[0]].begin(), all_floor_params[list[0]].end());
 		}
 		file.close();
 	}
@@ -86,9 +92,15 @@ void MainWindow::saveFloorParams() {
 	file.open(QIODevice::WriteOnly);
 	QTextStream out(&file);
 	for (auto it = all_floor_params.begin(); it != all_floor_params.end(); ++it) {
-		out << it.key();
-		for (auto param : it.value()) {
-			out << "," << param;
+		out << it.key() << "\n";
+		auto& params = it.value();
+		for (int i = 0; i < params.size(); i++) {
+			if (i == 0) {
+				out << params[i];
+			}
+			else {
+				out << "," << params[i];
+			}
 		}
 		out << "\n";
 	}
