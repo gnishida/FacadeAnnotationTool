@@ -183,7 +183,6 @@ def load_annotation(file_path):
 		
 	return column_params
 
-
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
 		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),

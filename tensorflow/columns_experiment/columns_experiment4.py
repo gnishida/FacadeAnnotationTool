@@ -198,22 +198,6 @@ def load_annotation(file_path):
 		
 	return column_params
 
-
-def load_annotation_floor(file_path):
-	floor_params = {}
-	file = open(file_path, "r")
-	for line in file.readlines():
-		line = line.strip()
-		values = []
-		data = line.split(',')
-		if len(data) > 1:
-			for i in range(1,len(data)):
-				values.append(float(data[i].strip()))
-			floor_params[data[0]] = values
-		
-	return floor_params
-
-
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
 		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
@@ -238,7 +222,7 @@ def build_model(int_shape, num_params, learning_rate):
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
-	floor_params = load_annotation_floor("floor_annotation.txt")
+	floor_params = load_annotation("floor_annotation.txt")
 
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
@@ -270,7 +254,7 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 def test(input_dir, model_dir, all_columns, output_dir):
 	# Load parameters
 	column_params = load_annotation("column_annotation.txt")
-	floor_params = load_annotation_floor("floor_annotation.txt")
+	floor_params = load_annotation("floor_annotation.txt")
 	
 	# Split the tensor into train and test dataset
 	path_list = glob.glob("{}/*.jpg".format(input_dir))
