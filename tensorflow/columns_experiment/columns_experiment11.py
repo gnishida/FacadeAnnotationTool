@@ -26,13 +26,13 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     height, width, num_channels = img.shape
     
     #crop
-    min_height = 0.75
+    min_height = 0.4
     vertical_size = random.uniform(min_height, 1)
     crop_pos = random.uniform(0, 1 - vertical_size)
     top = int(crop_pos * height)
     bottom = int((crop_pos + vertical_size) * height)
-    left = randint(0, 4)
-    right = max(int(random.uniform((windowR + 1), 1) * width), 4)
+    left = int(random.uniform(0, windowL / 2) * width)
+    right = int(random.uniform((windowR + 1) / 2, 1) * width)
     new_width = right - left
     #shift_h = 4
     #shift_v = 4
