@@ -18,7 +18,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
-MODEL_FILE_NAME = "columns_experiment10_model.h5"
+MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
 
