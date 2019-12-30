@@ -100,7 +100,6 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
 		orig_height, orig_width, channels = orig_img.shape
 				
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		file_base, file_ext = os.path.splitext(file_path)
 		
 		values = sorted(column_params[file_name], reverse = True)
 		values.append(0.0)
