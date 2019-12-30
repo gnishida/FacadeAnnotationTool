@@ -75,87 +75,87 @@ def load_img(file_path):
 
 
 def load_imgs(path_list, column_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
-	# Calculate number of images
-	num_images = 0
-	for file_path in path_list:
-		file_name = os.path.basename(file_path)
-		if use_augmentation:
-			if all_columns:
-				num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
-			else:
-				num_images += augmentation_factor
-		else:
-			if all_columns:
-				num_images += int(len(column_params[file_name]) / 2) + 1
-			else:
-				num_images += 1
+    # Calculate number of images
+    num_images = 0
+    for file_path in path_list:
+        file_name = os.path.basename(file_path)
+        if use_augmentation:
+            if all_columns:
+                num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
+            else:
+                num_images += augmentation_factor
+        else:
+            if all_columns:
+                num_images += int(len(column_params[file_name]) / 2) + 1
+            else:
+                num_images += 1
 
-	X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-	Y = numpy.zeros((num_images, 2), dtype=float)
-	
-	# Load images
-	i = 0
-	for file_path in path_list:
+    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
+    Y = numpy.zeros((num_images, 2), dtype=float)
+
+    # Load images
+    i = 0
+    for file_path in path_list:
         file_name = os.path.basename(file_path)
         
-		orig_img = load_img(file_path)
-		orig_height, orig_width, channels = orig_img.shape
-		
-		# Crop sky and shop
-		floors = sorted(floor_params[file_name])
-		roof = int(floors[0] * orig_height)
-		shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)
-		orig_img = orig_img[roof:shop,:,:]
-		orig_height, orig_width, channels = orig_img.shape
-		
-		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-		file_base, file_ext = os.path.splitext(file_path)
-		
-		values = sorted(column_params[file_name], reverse = True)
-		values.append(0.0)
-		values.append(0.0)
+        orig_img = load_img(file_path)
+        orig_height, orig_width, channels = orig_img.shape
+        
+        # Crop sky and shop
+        floors = sorted(floor_params[file_name])
+        roof = int(floors[0] * orig_height)
+        shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)
+        orig_img = orig_img[roof:shop,:,:]
+        orig_height, orig_width, channels = orig_img.shape
+        
+        img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        file_base, file_ext = os.path.splitext(file_path)
+        
+        values = sorted(column_params[file_name], reverse = True)
+        values.append(0.0)
+        values.append(0.0)
+        
+        width = orig_width
+        for a in range(0, len(values), 2):
+            valueR = values[a]
+            valueL = values[a + 1]
+            actual_valueR = valueR * orig_width / width
+            actual_valueL = valueL * orig_width / width
+            
+            if use_augmentation:
+                for j in range(augmentation_factor):
+                    img_tmp, adjusted_valueR, adjusted_valueL = augmentation(img, actual_valueR, actual_valueL)
+                    
+                    if debug:
+                        output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+                        print(output_filename)
+                        output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
+                    
+                    X[i,:,:,:] = standardize_img(img_tmp)
+                    Y[i, 0] = adjusted_valueR
+                    Y[i, 1] = adjusted_valueL
+                    i += 1
+            else:
+                X[i,:,:,:] = standardize_img(img)
+                Y[i, 0] = actual_valueR
+                Y[i, 1] = actual_valueL
+                i += 1
 
-		width = orig_width
-		for a in range(0, len(values), 2):
-			valueR = values[a]
-			valueL = values[a + 1]
-			actual_valueR = valueR * orig_width / width
-			actual_valueL = valueL * orig_width / width
-			
-			if use_augmentation:
-				for j in range(augmentation_factor):
-					img_tmp, adjusted_valueR, adjusted_valueL = augmentation(img, actual_valueR, actual_valueL)
-					
-					if debug:
-						output_filename = "{}/{}.png".format(DEBUG_DIR, i)
-						print(output_filename)
-						output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
-										
-					X[i,:,:,:] = standardize_img(img_tmp)
-					Y[i, 0] = adjusted_valueR
-					Y[i, 1] = adjusted_valueL
-					i += 1
-			else:
-				X[i,:,:,:] = standardize_img(img)
-				Y[i, 0] = actual_valueR
-				Y[i, 1] = actual_valueL
-				i += 1
+            if not all_columns: break
+            
+            # Update image
+            if valueL > 0:
+                width = int(orig_width * valueL)
+                img = orig_img[:,0:width,:]
+                img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+            
+    if use_shuffle:
+        randomize = numpy.arange(len(X))
+        numpy.random.shuffle(randomize)
+        X = X[randomize]
+        Y = Y[randomize]
 
-			if not all_columns: break
-			
-			# Update image
-			if valueL > 0:
-				width = int(orig_width * valueL)
-				img = orig_img[:,0:width,:]
-				img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-			
-	if use_shuffle:
-		randomize = numpy.arange(len(X))
-		numpy.random.shuffle(randomize)
-		X = X[randomize]
-		Y = Y[randomize]
-
-	return X, Y
+    return X, Y
 
 def output_img(img, valueR, valueL, filename):
 	print(img.shape)
@@ -200,22 +200,22 @@ def load_annotation(file_path):
 	return column_params
 
 def load_annotation_floor(file_path):
-	floor_params = {}
-	file = open(file_path, "r")
-	while True:
-		filename = file.readline().strip()
-		if len(filename) == 0: break
-        
+    floor_params = {}
+    file = open(file_path, "r")
+    while True:
+        filename = file.readline().strip()
+        if len(filename) == 0: break
+
         floors = file.readline().strip()
-        
+
         values = []
-		data = floors.split(',')
-		if len(data) > 0:
-			for i in range(len(data)):
-				values.append(float(data[i].strip()))
-			floor_params[filename] = values
-		
-	return floor_params
+        data = floors.split(',')
+        if len(data) > 0:
+            for i in range(len(data)):
+                values.append(float(data[i].strip()))
+            floor_params[filename] = values
+
+    return floor_params
 
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
