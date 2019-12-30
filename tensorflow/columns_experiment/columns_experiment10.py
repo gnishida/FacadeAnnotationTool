@@ -8,6 +8,7 @@ import scipy
 import random
 import argparse
 import cv2
+from random import randint
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
