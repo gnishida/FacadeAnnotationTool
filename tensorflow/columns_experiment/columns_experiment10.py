@@ -208,22 +208,22 @@ def load_annotation(file_path):
 	return column_params
 	
 def load_annotation_floor(file_path):
-	floor_params = {}
-	file = open(file_path, "r")
-	while True:
-		filename = file.readline().strip()
-		if len(filename) == 0: break
+    floor_params = {}
+    file = open(file_path, "r")
+    while True:
+        filename = file.readline().strip()
+        if len(filename) == 0: break
         
         floors = file.readline().strip()
         
         values = []
-		data = floors.split(',')
-		if len(data) > 0:
-			for i in range(len(data)):
-				values.append(float(data[i].strip()))
-			floor_params[filename] = values
-		
-	return floor_params
+        data = floors.split(',')
+        if len(data) > 0:
+            for i in range(len(data)):
+                values.append(float(data[i].strip()))
+            floor_params[filename] = values
+        
+    return floor_params
 
 
 def build_model(int_shape, num_params, learning_rate):
