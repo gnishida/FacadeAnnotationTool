@@ -102,16 +102,6 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		file_base, file_ext = os.path.splitext(file_path)
 		
-		if file_name == "monge_101.jpg":
-			print(file_path)
-			print(floors)
-			print(roof)
-			print(shop)
-			tmp = load_img(file_path)
-			output_img(tmp, 0, "outfile_orig.png")
-			output_img(orig_img, 0, "outfile.png")
-
-		
 		values = sorted(column_params[file_name], reverse = True)
 		values.append(0.0)
 
