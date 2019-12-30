@@ -205,22 +205,24 @@ def load_annotation(file_path):
 			column_params[filename] = values
 		
 	return column_params
-	
+
 def load_annotation_floor(file_path):
 	floor_params = {}
 	file = open(file_path, "r")
-	for line in file.readlines():
-		line = line.strip()
-		values = []
-		data = line.split(',')
-		if len(data) > 1:
-			for i in range(1,len(data)):
+	while True:
+		filename = file.readline().strip()
+		if len(filename) == 0: break
+        
+        floors = file.readline().strip()
+        
+        values = []
+		data = floors.split(',')
+		if len(data) > 0:
+			for i in range(len(data)):
 				values.append(float(data[i].strip()))
-			floor_params[data[0]] = values
+			floor_params[filename] = values
 		
 	return floor_params
-
-
 def build_model(int_shape, num_params, learning_rate):
 	model = tf.keras.Sequential([
 		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
