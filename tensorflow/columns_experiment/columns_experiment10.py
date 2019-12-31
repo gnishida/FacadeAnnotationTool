@@ -32,7 +32,7 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     top = int(crop_pos * height)
     bottom = int((crop_pos + vertical_size) * height)
     left = randint(0, 4)
-    right = max(int(random.uniform((windowR + 1), 1) * width), 4)
+    right = max(int(random.uniform((windowR + 1), 1) * width), 5)
     new_width = right - left
     #shift_h = 4
     #shift_v = 4
