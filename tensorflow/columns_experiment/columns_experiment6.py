@@ -17,7 +17,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
-MODEL_FILE_NAME = "columns_experiment6_model.h5"
+MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
 
@@ -147,7 +147,7 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                 if debug:
                     output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                     print(output_filename)
-                    output_img(img, actual_valueR, actual_valueL, output_filename)
+                    output_img(img_tmp, actual_valueR, actual_valueL, output_filename)
                 
                 X[i,:,:,:] = standardize_img(img_tmp)
                 Y[i, 0] = actual_valueR
@@ -213,42 +213,42 @@ def load_annotation(file_path):
 	return column_params
 
 def load_annotation_floor(file_path):
-	floor_params = {}
-	file = open(file_path, "r")
-	while True:
-		filename = file.readline().strip()
-		if len(filename) == 0: break
+    floor_params = {}
+    file = open(file_path, "r")
+    while True:
+        filename = file.readline().strip()
+        if len(filename) == 0: break
         
         floors = file.readline().strip()
         
         values = []
-		data = floors.split(',')
-		if len(data) > 0:
-			for i in range(len(data)):
-				values.append(float(data[i].strip()))
-			floor_params[filename] = values
-		
-	return floor_params
+        data = floors.split(',')
+        if len(data) > 0:
+            for i in range(len(data)):
+                values.append(float(data[i].strip()))
+            floor_params[filename] = values
+        
+    return floor_params
 
 def build_model(int_shape, num_params, learning_rate):
-	model = tf.keras.Sequential([
-		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
-		tf.keras.layers.Flatten(),
-		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-		tf.keras.layers.Dropout(0.5),
-		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-		tf.keras.layers.Dropout(0.5),
-		tf.keras.layers.Dense(num_params),
-	])
-	
-	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-	
-	model.compile(
-		loss='mse',
-		optimizer=optimizer,
-		metrics=['mae', 'mse'])
-	
-	return model
+    model = tf.keras.Sequential([
+        tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(num_params),
+    ])
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+    model.compile(
+        loss='mse',
+        optimizer=optimizer,
+        metrics=['mae', 'mse'])
+
+    return model
   
 
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
