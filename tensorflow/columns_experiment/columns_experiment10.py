@@ -144,12 +144,12 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                     Y[i, 1] = adjusted_valueL
                     i += 1
             else:
+                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
                 if debug:
                     output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                     print(output_filename)
-                    output_img(img, actual_valueR, actual_valueL, output_filename)
-
-                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+                    output_img(img_tmp, actual_valueR, actual_valueL, output_filename)
+                
                 X[i,:,:,:] = standardize_img(img_tmp)
                 Y[i, 0] = actual_valueR
                 Y[i, 1] = actual_valueL
