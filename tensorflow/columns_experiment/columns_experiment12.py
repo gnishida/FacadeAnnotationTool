@@ -8,7 +8,6 @@ import scipy
 import random
 import argparse
 import cv2
-from random import randint
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
@@ -18,7 +17,6 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
-PAD = 10
 MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
@@ -27,7 +25,7 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     height, width, num_channels = img.shape
     
     #crop
-    min_height = 0.4
+    min_height = 0.40
     vertical_size = random.uniform(min_height, 1)
     crop_pos = random.uniform(0, 1 - vertical_size)
     top = int(crop_pos * height)
@@ -40,10 +38,8 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     #img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
     img = img[top:bottom, left:right,:]
     
-    img = numpy.pad(img, ((0, 0),(0, PAD), (0, 0)), 'constant')
-    
-    paramR = (paramR * width - left) / (right - left + pad)
-    paramL = (paramL * width - left) / (right - left + pad)
+    paramR = (paramR * width - left) / (right - left)
+    paramL = (paramL * width - left) / (right - left)
     
     paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
     paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
@@ -74,7 +70,7 @@ def load_img(file_path):
 	img[:,:,1] = gray
 	img[:,:,2] = gray
 	
-	img = img.astype("float")
+	img = img.astype(numpy.float32)
 	return img
 
 
@@ -94,8 +90,8 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
             else:
                 num_images += 1
 
-    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-    Y = numpy.zeros((num_images, 2), dtype=float)
+    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=numpy.float32)
+    Y = numpy.zeros((num_images, 2), dtype=numpy.float32)
 
     # Load images
     i = 0
@@ -147,20 +143,15 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                     Y[i, 1] = adjusted_valueL
                     i += 1
             else:
-                img_tmp = numpy.pad(img, ((0, 0),(0, PAD), (0, 0)), 'constant')
-                adjustedR = actual_valueR * width / (width + PAD)
-                adjustedL = actual_valueL * width / (width + PAD)
-                adjustedR = numpy.clip(adjustedR, a_min = 0, a_max = 1)
-                adjustedL = numpy.clip(adjustedL, a_min = 0, a_max = 1)
-                img_tmp = cv2.resize(img_tmp, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
                 if debug:
                     output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                     print(output_filename)
-                    output_img(img_tmp, adjustedR, adjustedL, output_filename)
+                    output_img(img_tmp, actual_valueR, actual_valueL, output_filename)
                 
                 X[i,:,:,:] = standardize_img(img_tmp)
-                Y[i, 0] = adjustedR
-                Y[i, 1] = adjustedL
+                Y[i, 0] = actual_valueR
+                Y[i, 1] = actual_valueL
                 i += 1
 
             if not all_columns: break
@@ -220,7 +211,7 @@ def load_annotation(file_path):
 			column_params[filename] = values
 		
 	return column_params
-	
+
 def load_annotation_floor(file_path):
     floor_params = {}
     file = open(file_path, "r")
@@ -239,26 +230,25 @@ def load_annotation_floor(file_path):
         
     return floor_params
 
-
 def build_model(int_shape, num_params, learning_rate):
-	model = tf.keras.Sequential([
-		tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
-		tf.keras.layers.Flatten(),
-		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-		tf.keras.layers.Dropout(0.5),
-		tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
-		tf.keras.layers.Dropout(0.5),
-		tf.keras.layers.Dense(num_params),
-	])
-	
-	optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-	
-	model.compile(
-		loss='mse',
-		optimizer=optimizer,
-		metrics=['mae', 'mse'])
-	
-	return model
+    model = tf.keras.Sequential([
+        tf.keras.applications.VGG19(input_shape=(WIDTH, HEIGHT, 3), include_top=False, weights='imagenet'),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(512, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.001)),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(num_params),
+    ])
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+    model.compile(
+        loss='mse',
+        optimizer=optimizer,
+        metrics=['mae', 'mse'])
+
+    return model
   
 
 def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
@@ -306,7 +296,6 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
     path_list = glob.glob("{}/*.jpg".format(input_dir))
     X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
     if debug: return
-    
     # Load the model
     model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
         
@@ -336,7 +325,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
         Y = []
         while True:		
             # Prediction
-            X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+            X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=numpy.float32)
             X[0,:,:,:] = standardize_img(img)
             valueR = model.predict(X).flatten()[0]
             valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
@@ -387,7 +376,7 @@ def main():
             files = glob.glob("{}/*".format(DEBUG_DIR))
             for f in files:
                 os.remove(f)
-                
+
     if args.mode == "train":
         train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
     elif args.mode == "test":
