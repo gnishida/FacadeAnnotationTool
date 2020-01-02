@@ -250,15 +250,18 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 	# The patience parameter is the amount of epochs to check for improvement
 	early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
+	# Save the best model observed during training
+	check_point = ModelCheckpoint("{}/{}".format(model_dir, MODEL_FILE_NAME), monitor='val_loss')
+	
 	# Training model
 	model.fit(X, Y,
 		epochs=num_epochs,
 		validation_split = 0.2,
 		batch_size=32,
-		callbacks=[early_stop, tensorboard_callback])
+		callbacks=[early_stop, check_point, tensorboard_callback])
 
 	# Save the model
-	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
+	#model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
 def test(input_dir, model_dir, all_columns, output_dir, debug):
