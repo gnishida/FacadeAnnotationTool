@@ -18,6 +18,7 @@ HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
 NUM_CLASSES = 2
+PAD = 10
 MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
@@ -31,7 +32,7 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     crop_pos = random.uniform(0, 1 - vertical_size)
     top = int(crop_pos * height)
     bottom = int((crop_pos + vertical_size) * height)
-    left = int(random.uniform(0, windowL / 2) * width)
+    left = int(random.uniform(0, windowL) * width)
     right = int(random.uniform((windowR + 1) / 2, 1) * width)
     new_width = right - left
     #shift_h = 4
@@ -39,8 +40,10 @@ def augmentation(img, paramR, paramL, windowR, windowL):
     #img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
     img = img[top:bottom, left:right,:]
     
-    paramR = (paramR * width - left) / (right - left)
-    paramL = (paramL * width - left) / (right - left)
+    img = numpy.pad(img, ((0, 0),(0, PAD), (0, 0)), 'constant')
+    
+    paramR = (paramR * width - left) / (right - left + pad)
+    paramL = (paramL * width - left) / (right - left + pad)
     
     paramR = numpy.clip(paramR, a_min = 0, a_max = 1)
     paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
@@ -144,15 +147,20 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
                     Y[i, 1] = adjusted_valueL
                     i += 1
             else:
-                img_tmp = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+                img_tmp = numpy.pad(img, ((0, 0),(0, PAD), (0, 0)), 'constant')
+                adjustedR = actual_valueR * width / (width + PAD)
+                adjustedL = actual_valueL * width / (width + PAD)
+                adjustedR = numpy.clip(adjustedR, a_min = 0, a_max = 1)
+                adjustedL = numpy.clip(adjustedL, a_min = 0, a_max = 1)
+                img_tmp = cv2.resize(img_tmp, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
                 if debug:
                     output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                     print(output_filename)
-                    output_img(img, actual_valueR, actual_valueL, output_filename)
+                    output_img(img_tmp, adjustedR, adjustedL, output_filename)
                 
                 X[i,:,:,:] = standardize_img(img_tmp)
-                Y[i, 0] = actual_valueR
-                Y[i, 1] = actual_valueL
+                Y[i, 0] = adjustedR
+                Y[i, 1] = adjustedL
                 i += 1
 
             if not all_columns: break
@@ -295,7 +303,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
     path_list = glob.glob("{}/*.jpg".format(input_dir))
     X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
     if debug: return
-
+    
     # Load the model
     model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
         
