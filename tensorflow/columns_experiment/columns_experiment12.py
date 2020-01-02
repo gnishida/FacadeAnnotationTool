@@ -274,11 +274,14 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
         update_freq='batch',
         histogram_freq=1)
 
+    # The patience parameter is the amount of epochs to check for improvement
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+
     # Training model
     model.fit(X, Y,
         epochs=num_epochs,
         validation_split = 0.2,
-        callbacks=[tensorboard_callback])
+        callbacks=[early_stop, tensorboard_callback])
 
     # Save the model
     model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
