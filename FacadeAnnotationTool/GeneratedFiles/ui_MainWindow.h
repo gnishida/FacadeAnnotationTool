@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'MainWindow.ui'
 **
-** Created by: Qt User Interface Compiler version 5.6.3
+** Created by: Qt User Interface Compiler version 5.12.6
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -12,8 +12,6 @@
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QButtonGroup>
-#include <QtWidgets/QHeaderView>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QMenu>
 #include <QtWidgets/QMenuBar>
@@ -45,44 +43,44 @@ public:
     void setupUi(QMainWindow *MainWindowClass)
     {
         if (MainWindowClass->objectName().isEmpty())
-            MainWindowClass->setObjectName(QStringLiteral("MainWindowClass"));
+            MainWindowClass->setObjectName(QString::fromUtf8("MainWindowClass"));
         MainWindowClass->resize(600, 400);
         actionExit = new QAction(MainWindowClass);
-        actionExit->setObjectName(QStringLiteral("actionExit"));
+        actionExit->setObjectName(QString::fromUtf8("actionExit"));
         actionOpen = new QAction(MainWindowClass);
-        actionOpen->setObjectName(QStringLiteral("actionOpen"));
+        actionOpen->setObjectName(QString::fromUtf8("actionOpen"));
         actionSave = new QAction(MainWindowClass);
-        actionSave->setObjectName(QStringLiteral("actionSave"));
+        actionSave->setObjectName(QString::fromUtf8("actionSave"));
         actionPrevious = new QAction(MainWindowClass);
-        actionPrevious->setObjectName(QStringLiteral("actionPrevious"));
+        actionPrevious->setObjectName(QString::fromUtf8("actionPrevious"));
         actionNext = new QAction(MainWindowClass);
-        actionNext->setObjectName(QStringLiteral("actionNext"));
+        actionNext->setObjectName(QString::fromUtf8("actionNext"));
         actionUndo = new QAction(MainWindowClass);
-        actionUndo->setObjectName(QStringLiteral("actionUndo"));
+        actionUndo->setObjectName(QString::fromUtf8("actionUndo"));
         actionModeFloors = new QAction(MainWindowClass);
-        actionModeFloors->setObjectName(QStringLiteral("actionModeFloors"));
+        actionModeFloors->setObjectName(QString::fromUtf8("actionModeFloors"));
         actionModeFloors->setCheckable(true);
         actionModeColumns = new QAction(MainWindowClass);
-        actionModeColumns->setObjectName(QStringLiteral("actionModeColumns"));
+        actionModeColumns->setObjectName(QString::fromUtf8("actionModeColumns"));
         actionModeColumns->setCheckable(true);
         centralWidget = new QWidget(MainWindowClass);
-        centralWidget->setObjectName(QStringLiteral("centralWidget"));
+        centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         MainWindowClass->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(MainWindowClass);
-        menuBar->setObjectName(QStringLiteral("menuBar"));
+        menuBar->setObjectName(QString::fromUtf8("menuBar"));
         menuBar->setGeometry(QRect(0, 0, 600, 21));
         menuFile = new QMenu(menuBar);
-        menuFile->setObjectName(QStringLiteral("menuFile"));
+        menuFile->setObjectName(QString::fromUtf8("menuFile"));
         menuEdit = new QMenu(menuBar);
-        menuEdit->setObjectName(QStringLiteral("menuEdit"));
+        menuEdit->setObjectName(QString::fromUtf8("menuEdit"));
         menuMode = new QMenu(menuBar);
-        menuMode->setObjectName(QStringLiteral("menuMode"));
+        menuMode->setObjectName(QString::fromUtf8("menuMode"));
         MainWindowClass->setMenuBar(menuBar);
         mainToolBar = new QToolBar(MainWindowClass);
-        mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
+        mainToolBar->setObjectName(QString::fromUtf8("mainToolBar"));
         MainWindowClass->addToolBar(Qt::TopToolBarArea, mainToolBar);
         statusBar = new QStatusBar(MainWindowClass);
-        statusBar->setObjectName(QStringLiteral("statusBar"));
+        statusBar->setObjectName(QString::fromUtf8("statusBar"));
         MainWindowClass->setStatusBar(statusBar);
 
         menuBar->addAction(menuFile->menuAction());
@@ -106,23 +104,33 @@ public:
 
     void retranslateUi(QMainWindow *MainWindowClass)
     {
-        MainWindowClass->setWindowTitle(QApplication::translate("MainWindowClass", "MainWindow", Q_NULLPTR));
-        actionExit->setText(QApplication::translate("MainWindowClass", "Exit", Q_NULLPTR));
-        actionOpen->setText(QApplication::translate("MainWindowClass", "Open", Q_NULLPTR));
-        actionOpen->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+O", Q_NULLPTR));
-        actionSave->setText(QApplication::translate("MainWindowClass", "Save", Q_NULLPTR));
-        actionSave->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+S", Q_NULLPTR));
-        actionPrevious->setText(QApplication::translate("MainWindowClass", "Previous", Q_NULLPTR));
-        actionPrevious->setShortcut(QApplication::translate("MainWindowClass", "Left", Q_NULLPTR));
-        actionNext->setText(QApplication::translate("MainWindowClass", "Next", Q_NULLPTR));
-        actionNext->setShortcut(QApplication::translate("MainWindowClass", "Right", Q_NULLPTR));
-        actionUndo->setText(QApplication::translate("MainWindowClass", "Undo", Q_NULLPTR));
-        actionUndo->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+Z", Q_NULLPTR));
-        actionModeFloors->setText(QApplication::translate("MainWindowClass", "Floors", Q_NULLPTR));
-        actionModeColumns->setText(QApplication::translate("MainWindowClass", "Columns", Q_NULLPTR));
-        menuFile->setTitle(QApplication::translate("MainWindowClass", "File", Q_NULLPTR));
-        menuEdit->setTitle(QApplication::translate("MainWindowClass", "Edit", Q_NULLPTR));
-        menuMode->setTitle(QApplication::translate("MainWindowClass", "Mode", Q_NULLPTR));
+        MainWindowClass->setWindowTitle(QApplication::translate("MainWindowClass", "MainWindow", nullptr));
+        actionExit->setText(QApplication::translate("MainWindowClass", "Exit", nullptr));
+        actionOpen->setText(QApplication::translate("MainWindowClass", "Open", nullptr));
+#ifndef QT_NO_SHORTCUT
+        actionOpen->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+O", nullptr));
+#endif // QT_NO_SHORTCUT
+        actionSave->setText(QApplication::translate("MainWindowClass", "Save", nullptr));
+#ifndef QT_NO_SHORTCUT
+        actionSave->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+S", nullptr));
+#endif // QT_NO_SHORTCUT
+        actionPrevious->setText(QApplication::translate("MainWindowClass", "Previous", nullptr));
+#ifndef QT_NO_SHORTCUT
+        actionPrevious->setShortcut(QApplication::translate("MainWindowClass", "Left", nullptr));
+#endif // QT_NO_SHORTCUT
+        actionNext->setText(QApplication::translate("MainWindowClass", "Next", nullptr));
+#ifndef QT_NO_SHORTCUT
+        actionNext->setShortcut(QApplication::translate("MainWindowClass", "Right", nullptr));
+#endif // QT_NO_SHORTCUT
+        actionUndo->setText(QApplication::translate("MainWindowClass", "Undo", nullptr));
+#ifndef QT_NO_SHORTCUT
+        actionUndo->setShortcut(QApplication::translate("MainWindowClass", "Ctrl+Z", nullptr));
+#endif // QT_NO_SHORTCUT
+        actionModeFloors->setText(QApplication::translate("MainWindowClass", "Floors", nullptr));
+        actionModeColumns->setText(QApplication::translate("MainWindowClass", "Columns", nullptr));
+        menuFile->setTitle(QApplication::translate("MainWindowClass", "File", nullptr));
+        menuEdit->setTitle(QApplication::translate("MainWindowClass", "Edit", nullptr));
+        menuMode->setTitle(QApplication::translate("MainWindowClass", "Mode", nullptr));
     } // retranslateUi
 
 };
