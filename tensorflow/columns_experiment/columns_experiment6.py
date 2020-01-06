@@ -104,12 +104,11 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
         # Crop sky and shop	
         floors = sorted(floor_params[file_name])	
         roof = int(floors[0] * orig_height)	
-        shop = int(floors[len(floor_params[file_name]) - 1] * orig_height)	
+        shop = int(floors[len(floors) - 1] * orig_height)	
         orig_img = orig_img[roof:shop,:,:]	
         orig_height, orig_width, channels = orig_img.shape	
         
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-        file_base, file_ext = os.path.splitext(file_path)
         
         values = sorted(column_params[file_name], reverse = True)
         values.append(0.0)
@@ -171,7 +170,6 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
     return X, Y
 
 def output_img(img, valueR, valueL, filename):
-	print(img.shape)
 	img = Image.fromarray(img.astype(numpy.uint8))
 	width, height = img.size
 	imgdraw = ImageDraw.Draw(img)
@@ -310,11 +308,20 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
     file.close()
 
     # Save the predicted images
-    for i in range(len(path_list)):				
+    for i in range(len(path_list)):
+        file_name = os.path.basename(path_list[i])
         print(path_list[i])
+		
         orig_img = load_img(path_list[i])
-        orig_width = orig_img.shape[1]
+        orig_height, orig_width, channels = orig_img.shape
 
+        # Crop sky and shop
+        floors = sorted(floor_params[file_name])
+        roof = int(floors[0] * orig_height)
+        shop = int(floors[len(floors) - 1] * orig_height)
+        orig_img = orig_img[roof:shop,:,:]
+        orig_height, orig_width, channels = orig_img.shape
+		
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         width = orig_width
         
@@ -339,7 +346,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
             img = orig_img[:,0:width,:]
             img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         
-        # Load image
+        # Save prediction image
         file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
         output_img2(Image.open(path_list[i]), Y, file_name)
 
