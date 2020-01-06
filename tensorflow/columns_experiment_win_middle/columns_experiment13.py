@@ -304,7 +304,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		width = orig_width
 		
-		# Repeatedly predict floors
+		# Repeatedly predict columns
 		Y = []
 		while True:		
 			# Prediction
