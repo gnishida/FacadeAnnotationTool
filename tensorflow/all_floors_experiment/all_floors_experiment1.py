@@ -147,7 +147,7 @@ def output_img(x, y, filename):
 	img.save("{}".format(filename))		
 		
 def load_annotation(file_path):
-	params = {}
+	floor_params = {}
 	file = open(file_path, "r")
 	while True:
 		filename = file.readline().strip()
