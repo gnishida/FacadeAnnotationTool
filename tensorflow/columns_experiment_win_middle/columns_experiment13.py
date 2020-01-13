@@ -247,14 +247,17 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 		update_freq='batch',
 		histogram_freq=1)
 	
+	early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=10)
+	check_point = tf.keras.callbacks.ModelCheckpoint("{}/{}".format(model_dir, MODEL_FILE_NAME), monitor='val_loss', mode='min', save_best_only=True)
+
 	# Training model
 	model.fit(X, Y,
 		epochs=num_epochs,
 		validation_split = 0.2,
-		callbacks=[tensorboard_callback])
+		callbacks=[early_stopping, check_point, tensorboard_callback])
 
 	# Save the model
-	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
+	#model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
 def test(input_dir, model_dir, all_columns, output_dir, debug):
@@ -301,7 +304,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		width = orig_width
 		
-		# Repeatedly predict floors
+		# Repeatedly predict columns
 		Y = []
 		while True:		
 			# Prediction

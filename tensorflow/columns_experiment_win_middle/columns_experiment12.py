@@ -31,13 +31,14 @@ def augmentation(img, param):
 	shift_v = 4
 	offset_x = int(random.uniform(0, shift_h * 2))
 	offset_y = int(random.uniform(0, shift_v * 2))
-	img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
+	img = numpy.pad(img, ((shift_v, shift_v), (shift_h, shift_h), (0, 0)), mode='edge')
+	#img = tf.image.resize_with_crop_or_pad(img, height + shift_v * 2, width + shift_h * 2)
 	img = img[offset_y:offset_y+height, offset_x:offset_x+width,:]
 	param = (param * width + shift_h - offset_x) / width
 	param = numpy.clip(param, a_min = 0, a_max = 1)
 			
 	# rotate
-	angle = random.uniform(-0.5, 0.5)
+	angle = random.uniform(-0.0, 0.0)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
 	return img, param
@@ -247,14 +248,18 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
 		update_freq='batch',
 		histogram_freq=1)
 	
+		
+	early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', patience=10)
+	check_point = tf.keras.callbacks.ModelCheckpoint("{}/{}".format(model_dir, MODEL_FILE_NAME), monitor='val_loss', mode='min', save_best_only=True)
+	
 	# Training model
 	model.fit(X, Y,
 		epochs=num_epochs,
 		validation_split = 0.2,
-		callbacks=[tensorboard_callback])
+		callbacks=[early_stopping, check_point, tensorboard_callback])
 
 	# Save the model
-	model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
+	#model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
 def test(input_dir, model_dir, all_columns, output_dir, debug):
@@ -319,7 +324,7 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
 			img = orig_img[:,0:width,:]
 			img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		
-		# Save prediction image
+		# Load image
 		file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
 		output_img2(Image.open(path_list[i]), Y, file_name)
 

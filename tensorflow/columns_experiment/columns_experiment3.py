@@ -89,8 +89,8 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 	
 	# Load images
 	i = 0
-	for file_path in path_list:	
-        file_name = os.path.basename(file_path)
+	for file_path in path_list:
+		file_name = os.path.basename(file_path)
     
 		orig_img = load_img(file_path)
 		orig_width = orig_img.shape[1]
@@ -122,6 +122,11 @@ def load_imgs(path_list, column_params, use_augmentation = False, augmentation_f
 					Y[i, 1] = adjusted_valueL
 					i += 1
 			else:
+				if debug:
+					output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+					print(output_filename)
+					output_img(img, actual_valueR, actual_valueL, output_filename)
+				
 				X[i,:,:,:] = standardize_img(img)
 				Y[i, 0] = actual_valueR
 				Y[i, 1] = actual_valueL
@@ -270,7 +275,7 @@ def test(input_dir, model_dir, all_columns, output_dir):
 		img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		width = orig_width
 		
-		# Repeatedly predict floors
+		# Repeatedly predict columns
 		Y = []
 		while True:		
 			# Prediction
@@ -291,7 +296,7 @@ def test(input_dir, model_dir, all_columns, output_dir):
 			img = orig_img[:,0:width,:]
 			img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
 		
-		# Load image
+		# Save prediction image
 		file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
 		output_img2(Image.open(path_list[i]), Y, file_name)
 

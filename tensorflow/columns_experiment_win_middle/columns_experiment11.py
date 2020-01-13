@@ -37,7 +37,7 @@ def augmentation(img, param):
 	param = numpy.clip(param, a_min = 0, a_max = 1)
 			
 	# rotate
-	angle = random.uniform(-0.5, 0.5)
+	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
 	return img, param
