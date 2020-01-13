@@ -45,7 +45,7 @@ def augmentation(x, y_bot, y_top):
     x = tf.image.random_flip_left_right(x)
         
     # rotate
-    angle = random.uniform(-0.5, 0.5)
+    angle = random.uniform(-0.1, 0.1)
     x = scipy.ndimage.rotate(x, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 
     return x, y_bot, y_top
@@ -106,7 +106,7 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
         values.append(0.0)
 
         height = orig_height
-        for a in range(0, int(len(values) / 2)):
+        for a in range(0, len(values), 2):
             actual_bot = values[a] * orig_height / height
             actual_top = values[a + 1] * orig_height / height
             
