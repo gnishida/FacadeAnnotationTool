@@ -267,7 +267,7 @@ def test(input_dir, model_dir, all_floors, output_dir):
             X[0,:,:,:] = standardize_img(x)
             y_bot = model.predict(X).flatten()[0]
             y_bot = numpy.clip(y_bot * height / orig_height, a_min = 0, a_max = 1)
-            y_top = model.predict(X).flatten()[0]
+            y_top = model.predict(X).flatten()[1]
             y_top = numpy.clip(y_top * height / orig_height, a_min = 0, a_max = 1)
             if y_bot < 0.05: break
             if y_top < 0.05: break
