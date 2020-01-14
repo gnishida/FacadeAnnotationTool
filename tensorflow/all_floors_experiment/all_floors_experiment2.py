@@ -122,7 +122,7 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
                     X[i,:,:,:] = standardize_img(img_tmp)
                     Y[i, 0] = adjusted_bot
                     Y[i, 1] = adjusted_top
-                    i += 1					
+                    i += 1
             else:
                 X[i,:,:,:] = standardize_img(imgx)
                 Y[i, 0] = actual_bot
