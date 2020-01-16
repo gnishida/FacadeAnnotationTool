@@ -370,12 +370,12 @@ def test():
         orig_height, orig_width, channels = orig_img.shape
         img_tmp = os.path.split(Y)[1]
         for i in range(len(floor_params[img_tmp])):
-            floor_params[img_tmp][i] *= orig_height
+            params[img_tmp][i] *= orig_height
         
         for i in range(len(column_params[img_tmp])):
             column_params[img_tmp][i] *= orig_width
         
-    Y_horizontal_truth = floor_params
+    Y_horizontal_truth = params
     Y_vertical_truth = column_params
     
     img_num = 0
@@ -386,11 +386,14 @@ def test():
         facade_error = 0
         orig_img = load_img(image)
         orig_height, orig_width, channels = orig_img.shape
+        print(Y_horizontal[img_num])
+        print(len(Y_horizontal[img_num]))
         for a in range(0, len(Y_horizontal[img_num]), 2):
-            if (a >= len(Y_horizontal[img_num]) - 1):
+            print(a)
+            if (a >= len(Y_horizontal[img_num])):
                 break
                 
-            if (a >= len(Y_horizontal_truth[img_tmp]) - 1):
+            if (a >= len(Y_horizontal_truth[img_tmp])):
                 break
             
             window_bot = Y_horizontal[img_num][a]
@@ -398,10 +401,10 @@ def test():
             window_bot_truth = Y_horizontal_truth[img_tmp][a]
             window_top_truth = Y_horizontal_truth[img_tmp][a + 1]
             for b in range(0, len(Y_vertical[img_num]), 2):
-                if (b >= len(Y_vertical[img_num]) - 1):
+                if (b >= len(Y_vertical[img_num])):
                     break
                     
-                if (b >= len(Y_vertical_truth[img_tmp]) - 1):
+                if (b >= len(Y_vertical_truth[img_tmp])):
                     break
                 
                 window_right = Y_vertical[img_num][b]
@@ -410,9 +413,7 @@ def test():
                 window_left_truth = Y_vertical_truth[img_tmp][b + 1]
                 
                 # Output predicted window
-                #img[window_top:window_bot, window_left:window_right, 2] = numpy.ones((window_bot - window_top, window_left - window_right, 1))
-                #img_tmp = Image.fromarray(img.astype(numpy.uint8))
-                #img_tmp.save("out/{}".format(os.path.split(image)[1]))
+                img[int(window_top):int(window_bot), int(window_left):int(window_right), 2] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left)))
                 
                 union = 0
                 for c in range(int(window_top_truth), int(window_bot_truth)):
@@ -421,10 +422,11 @@ def test():
                             union += 1
                 
                 facade_error += ((window_bot - window_top) * (window_right - window_left) + (window_bot_truth - window_top_truth) * (window_right_truth - window_left_truth) - 2 * union)
-                print(facade_error)
-                print(orig_height * orig_width)
                 
         total_err += (facade_error / (orig_height * orig_width))
+
+        img_tmp = Image.fromarray(img.astype(numpy.uint8))
+        img_tmp.save("out/{}".format(os.path.split(image)[1]))
         
         img_num += 1
       
