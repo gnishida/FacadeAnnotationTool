@@ -413,7 +413,8 @@ def test():
                 window_left_truth = Y_vertical_truth[img_tmp][b + 1]
                 
                 # Output predicted window
-                img[int(window_top):int(window_bot), int(window_left):int(window_right), 2] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left)))
+                img[int(window_top):int(window_bot), int(window_left):int(window_right), 2] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left))) * 255
+                img[int(window_top):int(window_bot), int(window_left):int(window_right), 1] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left))) * 255
                 
                 union = 0
                 for c in range(int(window_top_truth), int(window_bot_truth)):
