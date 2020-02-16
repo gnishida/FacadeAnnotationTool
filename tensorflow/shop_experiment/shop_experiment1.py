@@ -40,7 +40,7 @@ def augmentation(img, paramR, paramL):
 	paramL = numpy.clip(paramL, a_min = 0, a_max = 1)
 			
 	# rotate
-	angle = random.uniform(-0.5, 0.5)
+	angle = random.uniform(-0.1, 0.1)
 	img = scipy.ndimage.rotate(img, angle , axes=(1, 0), reshape=False, order=3, mode='constant', cval=0.0, prefilter=True)
 	
 	return img, paramR, paramL
@@ -68,21 +68,12 @@ def load_img(file_path):
 	return img
 
 
-def load_imgs(path_list, column_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_columns = False, debug = False):
+def load_imgs(path_list, ground_params, floor_params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, debug = False):
     # Calculate number of images
-    num_images = 0
-    for file_path in path_list:
-        file_name = os.path.basename(file_path)
-        if use_augmentation:
-            if all_columns:
-                num_images += (int(len(column_params[file_name]) / 2) + 1) * augmentation_factor
-            else:
-                num_images += augmentation_factor
-        else:
-            if all_columns:
-                num_images += int(len(column_params[file_name]) / 2) + 1
-            else:
-                num_images += 1
+    if use_augmentation:
+        num_images = len(path_list) * augmentation_factor
+    else:
+        num_images = len(path_list)
 
     X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
     Y = numpy.zeros((num_images, 2), dtype=float)
@@ -95,58 +86,47 @@ def load_imgs(path_list, column_params, floor_params, use_augmentation = False, 
         orig_img = load_img(file_path)
         orig_height, orig_width, channels = orig_img.shape
         
-        # Crop sky and shop
+        # Crop above shop
         floors = sorted(floor_params[file_name])
-        roof = int(floors[0] * orig_height)
         shop = int(floors[len(floors) - 1] * orig_height)
-        orig_img = orig_img[roof:shop,:,:]
+        orig_img = orig_img[shop:orig_height,:,:]
         orig_height, orig_width, channels = orig_img.shape
         
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         
-        values = sorted(column_params[file_name], reverse = True)
-        values.append(0.0)
-        values.append(0.0)
+        values = sorted(ground_params[file_name], reverse = True)
         
         width = orig_width
-        for a in range(0, len(values), 2):
-            valueR = values[a]
-            valueL = values[a + 1]
-            actual_valueR = valueR * orig_width / width
-            actual_valueL = valueL * orig_width / width
-            
-            if use_augmentation:
-                for j in range(augmentation_factor):
-                    img_tmp, adjusted_valueR, adjusted_valueL = augmentation(img, actual_valueR, actual_valueL)
-                    
-                    if debug:
-                        output_filename = "{}/{}.png".format(DEBUG_DIR, i)
-                        print(output_filename)
-                        output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
-                    
-                    X[i,:,:,:] = standardize_img(img_tmp)
-                    Y[i, 0] = adjusted_valueR
-                    Y[i, 1] = adjusted_valueL
-                    i += 1
-            else:
+        #Previous loop location 
+        valueR = values[0]
+        valueL = values[1]
+        actual_valueR = valueR * orig_width / width
+        actual_valueL = valueL * orig_width / width
+        
+        if use_augmentation:
+            for j in range(augmentation_factor):
+                img_tmp, adjusted_valueR, adjusted_valueL = augmentation(img, actual_valueR, actual_valueL)
+                
                 if debug:
                     output_filename = "{}/{}.png".format(DEBUG_DIR, i)
                     print(output_filename)
-                    output_img(img, actual_valueR, actual_valueL, output_filename)
-                    
-                X[i,:,:,:] = standardize_img(img)
-                Y[i, 0] = actual_valueR
-                Y[i, 1] = actual_valueL
+                    output_img(img_tmp, adjusted_valueR, adjusted_valueL, output_filename)
+                
+                X[i,:,:,:] = standardize_img(img_tmp)
+                Y[i, 0] = adjusted_valueR
+                Y[i, 1] = adjusted_valueL
                 i += 1
-
-            if not all_columns: break
-            
-            # Update image
-            if valueL > 0:
-                width = int(orig_width * valueL)
-                img = orig_img[:,0:width,:]
-                img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
-            
+        else:
+            if debug:
+                output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+                print(output_filename)
+                output_img(img, actual_valueR, actual_valueL, output_filename)
+                
+            X[i,:,:,:] = standardize_img(img)
+            Y[i, 0] = actual_valueR
+            Y[i, 1] = actual_valueL
+            i += 1
+        
     if use_shuffle:
         randomize = numpy.arange(len(X))
         numpy.random.shuffle(randomize)
@@ -178,7 +158,7 @@ def output_img2(img, values, filename):
 
 		
 def load_annotation(file_path):
-	column_params = {}
+	ground_params = {}
 	file = open(file_path, "r")
 	while True:
 		filename = file.readline().strip()
@@ -188,13 +168,13 @@ def load_annotation(file_path):
 		ground_columns = file.readline().strip()
 		
 		values = []
-		data = columns.split(',')
+		data = ground_columns.split(',')
 		if len(data) > 0:
 			for i in range(len(data)):
 				values.append(float(data[i].strip()))
-			column_params[filename] = values
+			ground_params[filename] = values
 		
-	return column_params
+	return ground_params
 
 def load_annotation_floor(file_path):
     floor_params = {}
@@ -235,14 +215,14 @@ def build_model(int_shape, num_params, learning_rate):
 	return model
   
 
-def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, all_columns, output_dir, debug):
+def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, output_dir, debug):
     # Load parameters
-    column_params = load_annotation("column_annotation.txt")
+    ground_params = load_annotation("column_annotation.txt")
     floor_params = load_annotation_floor("floor_annotation.txt")
 
     # Split the tensor into train and test dataset
     path_list = glob.glob("{}/*.jpg".format(input_dir))
-    X, Y = load_imgs(path_list, column_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, all_columns = all_columns, debug = debug)
+    X, Y = load_imgs(path_list, ground_params, floor_params, use_augmentation = True, augmentation_factor = augmentation_factor, use_shuffle = True, debug = debug)
     print(X.shape)
     if debug: return
 
@@ -268,14 +248,14 @@ def train(input_dir, model_dir, num_epochs, learning_late, augmentation_factor, 
     model.save("{}/{}".format(model_dir, MODEL_FILE_NAME))
 
 
-def test(input_dir, model_dir, all_columns, output_dir, debug):
+def test(input_dir, model_dir, output_dir, debug):
     # Load parameters
-    column_params = load_annotation("column_annotation.txt")
+    ground_params = load_annotation("column_annotation.txt")
     floor_params = load_annotation_floor("floor_annotation.txt")
 
     # Split the tensor into train and test dataset
     path_list = glob.glob("{}/*.jpg".format(input_dir))
-    X, Y = load_imgs(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
+    X, Y = load_imgs(path_list, ground_params, floor_params, debug = debug)
     if debug: return
 
     # Load the model
@@ -304,34 +284,24 @@ def test(input_dir, model_dir, all_columns, output_dir, debug):
 
 		# Crop sky and shop
         floors = sorted(floor_params[file_name])
-        roof = int(floors[0] * orig_height)
         shop = int(floors[len(floors) - 1] * orig_height)
-        orig_img = orig_img[roof:shop,:,:]
+        orig_img = orig_img[shop:orig_height,:,:]
         orig_height, orig_width, channels = orig_img.shape
 		
         img = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
         width = orig_width
         
-        # Repeatedly predict columns
         Y = []
-        while True:		
-            # Prediction
-            X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
-            X[0,:,:,:] = standardize_img(img)
-            valueR = model.predict(X).flatten()[0]
-            valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
-            valueL = model.predict(X).flatten()[1]
-            valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
-            if valueL < 0.05: break
-            Y.append(valueR)
-            Y.append(valueL)
-            
-            if not all_columns: break
-            
-            # Update image
-            width = int(orig_width * valueL)
-            img = orig_img[:,0:width,:]
-            img = cv2.resize(img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        # Prediction
+        X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+        X[0,:,:,:] = standardize_img(img)
+        valueR = model.predict(X).flatten()[0]
+        valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
+        valueL = model.predict(X).flatten()[1]
+        valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
+        if valueL < 0.05: break
+        Y.append(valueR)
+        Y.append(valueL)
         
         # Save prediction image
         file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
@@ -347,7 +317,6 @@ def main():
     parser.add_argument('--num_epochs', type=int, default=10)
     parser.add_argument('--learning_rate', type=float, default=0.0001)
     parser.add_argument('--augmentation_factor', type=int, default=100)
-    parser.add_argument('--all_columns', action="store_true", help="Use all floors")
     parser.add_argument('--debug', action="store_true", help="Output debug information")
     args = parser.parse_args()	
 
@@ -369,9 +338,9 @@ def main():
                 os.remove(f)
 
     if args.mode == "train":
-        train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.all_columns, args.output_dir, args.debug)
+        train(args.input_dir, args.model_dir, args.num_epochs, args.learning_rate, args.augmentation_factor, args.output_dir, args.debug)
     elif args.mode == "test":
-        test(args.input_dir, args.model_dir, args.all_columns, args.output_dir, args.debug)
+        test(args.input_dir, args.model_dir, args.output_dir, args.debug)
     else:
         print("Invalid mode is specified {}".format(args.mode))
         exit(1)
