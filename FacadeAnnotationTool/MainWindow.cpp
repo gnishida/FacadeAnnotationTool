@@ -94,6 +94,7 @@ void MainWindow::saveFloorParams() {
 	for (auto it = all_floor_params.begin(); it != all_floor_params.end(); ++it) {
 		out << it.key() << "\n";
 		auto& params = it.value();
+		sort(params.begin(), params.end());
 		for (int i = 0; i < params.size(); i++) {
 			if (i == 0) {
 				out << params[i];
