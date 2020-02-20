@@ -16,7 +16,7 @@ from tensorflow.keras.callbacks import TensorBoard
 HEIGHT = 160
 WIDTH = 160
 NUM_CHANNELS = 3
-NUM_CLASSES = 4
+NUM_CLASSES = 2
 MODEL_FILE_NAME = "{}_model.h5".format(os.path.splitext(os.path.basename(__file__))[0])
 
 DEBUG_DIR = "__debug__"
@@ -98,7 +98,7 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
                 num_images += 1
 
     X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
-    Y = numpy.zeros((num_images, 4), dtype=float)
+    Y = numpy.zeros((num_images, 2), dtype=float)
 
     # Load images
     i = 0
@@ -116,7 +116,7 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
         values.append(0.0)
 
         height = orig_height
-        for a in range(0, len(values), 4):
+        for a in range(0, len(values) - 1, 4):
             actual_floor = values[a] * orig_height / height
             actual_Lbal = values[a + 1] * orig_height / height
             actual_Sbal = values[a + 2] * orig_height / height
@@ -132,17 +132,13 @@ def load_imgs(path_list, params, use_augmentation = False, augmentation_factor =
                         output_img(img_tmp, adjusted_floor, adjusted_Lbal, adjusted_Sbal, adjusted_window, output_filename)
                                         
                     X[i,:,:,:] = standardize_img(img_tmp)
-                    Y[i, 0] = adjusted_floor
-                    Y[i, 1] = adjusted_Lbal
-                    Y[i, 2] = adjusted_Sbal
-                    Y[i, 3] = adjusted_window
+                    Y[i, 0] = adjusted_Lbal
+                    Y[i, 1] = adjusted_Sbal
                     i += 1
             else:
                 X[i,:,:,:] = standardize_img(imgx)
-                Y[i, 0] = actual_floor
-                Y[i, 1] = actual_Lbal
-                Y[i, 2] = actual_Sbal
-                Y[i, 3] = actual_window
+                Y[i, 0] = actual_Lbal
+                Y[i, 1] = actual_Sbal
                 i += 1
 
             if not all_floors: break
@@ -251,7 +247,7 @@ def test(input_dir, model_dir, all_floors, output_dir):
     # Split the tensor into train and test dataset
     path_list = glob.glob("{}/*.jpg".format(input_dir))
     X, Y = load_imgs(path_list, params, all_floors = all_floors)
-          
+    
     # Load the model
     model = tf.keras.models.load_model("{}/{}".format(model_dir, MODEL_FILE_NAME))
         
@@ -267,9 +263,10 @@ def test(input_dir, model_dir, all_floors, output_dir):
         file_name = os.path.basename(path_list[i])
         file.write("{},{}\n".format(file_name, predictedY[i]))
     file.close()
-
+    
     # Save the predicted images
-    for i in range(len(path_list)):				
+    for i in range(len(path_list)):
+        img_tmp = os.path.split(path_list[i])[1]
         print(path_list[i])
         orig_x = load_img(path_list[i])
         orig_height = orig_x.shape[0]
@@ -279,18 +276,17 @@ def test(input_dir, model_dir, all_floors, output_dir):
         
         # Repeatedly predict floors
         Y = []
+        a = 0
         while True:		
             # Prediction
             X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
             X[0,:,:,:] = standardize_img(x)
-            y_floor = model.predict(X).flatten()[0]
-            y_floor = numpy.clip(y_floor * height / orig_height, a_min = 0, a_max = 1)
-            y_Lbal = model.predict(X).flatten()[1]
+            y_floor = numpy.clip(params[img_tmp][len(params[img_tmp]) - 4 * a - 1] * height / orig_height, a_min = 0, a_max = 1)
+            y_Lbal = model.predict(X).flatten()[0]
             y_Lbal = numpy.clip(y_Lbal * height / orig_height, a_min = 0, a_max = 1)
-            y_Sbal = model.predict(X).flatten()[2]
+            y_Sbal = model.predict(X).flatten()[1]
             y_Sbal = numpy.clip(y_Sbal * height / orig_height, a_min = 0, a_max = 1)
-            y_window = model.predict(X).flatten()[3]
-            y_window = numpy.clip(y_window * height / orig_height, a_min = 0, a_max = 1)
+            y_window = numpy.clip(params[img_tmp][len(params[img_tmp]) - 4 * a - 4] * height / orig_height, a_min = 0, a_max = 1)
             if y_floor < 0.05: break
             if y_Lbal < 0.05: break
             if y_Sbal < 0.05: break
@@ -306,6 +302,8 @@ def test(input_dir, model_dir, all_floors, output_dir):
             height = int(orig_height * y_window)
             x = orig_x[0:height,:,:]
             x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+            
+            a = a + 1
         
         # Load image
         file_name = os.path.basename(path_list[i])
