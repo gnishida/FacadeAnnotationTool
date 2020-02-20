@@ -406,9 +406,9 @@ def test():
             Lbal_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 2] * orig_height
             floor_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 1] * orig_height
             
-            random_win = random.uniform(-1, 2)
-            random_Sbal = random.uniform(-2, 2)
-            random_Lbal = random.uniform(-2, 1)
+            random_win = random.uniform(-3, 3)
+            random_Sbal = random.uniform(-3, 3)
+            random_Lbal = random.uniform(-3, 3)
             
             Sbal_top = Sbal_top + random_win
             Lbal_top = Lbal_top + random_Sbal
