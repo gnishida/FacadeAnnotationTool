@@ -280,7 +280,7 @@ def test():
     # Save the predicted images
     Y_horizontal = []
     for i in range(len(path_list)):				
-        print(path_list[i])
+        #print(path_list[i])
         orig_x = load_img(path_list[i])
         orig_height = orig_x.shape[0]
 
@@ -327,7 +327,7 @@ def test():
     Y_vertical = []
     for i in range(len(path_list)):
         file_name = os.path.basename(path_list[i])
-        print(path_list[i])
+        #print(path_list[i])
 		
         orig_img = load_img(path_list[i])
         orig_height, orig_width, channels = orig_img.shape
@@ -377,6 +377,8 @@ def test():
         
     Y_horizontal_truth = params
     Y_vertical_truth = column_params
+    balcony = load_annotation_horiz("balcony_annotation.txt")
+    
     
     img_num = 0
     total_err = 0
@@ -386,10 +388,10 @@ def test():
         facade_error = 0
         orig_img = load_img(image)
         orig_height, orig_width, channels = orig_img.shape
-        print(Y_horizontal[img_num])
-        print(len(Y_horizontal[img_num]))
+        #print(Y_horizontal[img_num])
+        #print(len(Y_horizontal[img_num]))
         for a in range(0, len(Y_horizontal[img_num]), 2):
-            print(a)
+            #print(a)
             if (a >= len(Y_horizontal[img_num])):
                 break
                 
@@ -400,6 +402,26 @@ def test():
             window_top = Y_horizontal[img_num][a + 1]
             window_bot_truth = Y_horizontal_truth[img_tmp][a]
             window_top_truth = Y_horizontal_truth[img_tmp][a + 1]
+            Sbal_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 3] * orig_height
+            Lbal_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 2] * orig_height
+            floor_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 1] * orig_height
+            
+            random_win = random.uniform(-1, 2)
+            random_Sbal = random.uniform(-2, 2)
+            random_Lbal = random.uniform(-2, 1)
+            
+            Sbal_top = Sbal_top + random_win
+            Lbal_top = Lbal_top + random_Sbal
+            floor_top = floor_top + random_Lbal
+            if (Lbal_top - Sbal_top < 0):
+                Lbal_top = Sbal_top
+            
+            if (floor_top - Lbal_top < 0):
+                Lbal_top = floor_top
+            
+            if (Lbal_top - Sbal_top < 0):
+                Sbal_top = Lbal_top
+            
             for b in range(0, len(Y_vertical[img_num]), 2):
                 if (b >= len(Y_vertical[img_num])):
                     break
@@ -412,9 +434,21 @@ def test():
                 window_right_truth = Y_vertical_truth[img_tmp][b]
                 window_left_truth = Y_vertical_truth[img_tmp][b + 1]
                 
+                
                 # Output predicted window
-                img[int(window_top):int(window_bot), int(window_left):int(window_right), 2] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left))) * 255
-                img[int(window_top):int(window_bot), int(window_left):int(window_right), 1] = numpy.ones((int(window_bot) - int(window_top), int(window_right) - int(window_left))) * 255
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 2] = numpy.ones((int(Sbal_top) - int(window_top), int(window_right) - int(window_left))) * 255
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] / 2
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] / 2
+                
+                # Output predicted small balcony
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 1] = numpy.ones((int(Lbal_top) - int(Sbal_top), int(window_right) - int(window_left))) * 255
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] / 4 * 3
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] / 4 * 3
+                
+                # Output predicted large balcony
+                img[int(Lbal_top):int(floor_top), 0:orig_width, 0] = numpy.ones((int(floor_top) - int(Lbal_top), orig_width)) * 255
+                img[int(Lbal_top):int(floor_top), 0:orig_width, 2] = img[int(Lbal_top):int(floor_top), 0:orig_width, 2]
+                img[int(Lbal_top):int(floor_top), 0:orig_width, 1] = img[int(Lbal_top):int(floor_top), 0:orig_width, 1]
                 
                 union = 0
                 for c in range(int(window_top_truth), int(window_bot_truth)):
