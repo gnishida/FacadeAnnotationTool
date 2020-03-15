@@ -275,6 +275,8 @@ def test(input_dir, model_dir, output_dir, debug):
     file.close()
 
     # Save the predicted images
+    accuracy = 0
+    accuracy2 = 0
     for i in range(len(path_list)):
         file_name = os.path.basename(path_list[i])
         print(path_list[i])
@@ -296,16 +298,53 @@ def test(input_dir, model_dir, output_dir, debug):
         X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
         X[0,:,:,:] = standardize_img(img)
         valueR = model.predict(X).flatten()[0]
+        R = valueR * width
         valueR = numpy.clip(valueR * width / orig_width, a_min = 0, a_max = 1)
         valueL = model.predict(X).flatten()[1]
+        L = valueL * width
         valueL = numpy.clip(valueL * width / orig_width, a_min = 0, a_max = 1)
         if valueL < 0.05: break
         Y.append(valueR)
         Y.append(valueL)
+        w = 0;
+        correct = 0;
+        w2 = 0;
+        correct2 = 0;
+        R_truth = ground_params[file_name][1] * width
+        L_truth = ground_params[file_name][0] * width
+        correct3 = 0
+        correct4 = 0
+        for j in range(width):
+            if (j < L or j > R):
+                w += 1;
+                if (j < L_truth or j > R_truth):
+                    correct += 1
+            
+            else:
+                w2 += 1;
+                if (j > L_truth and j < R_truth):
+                    correct2 += 1
+                    
+            if (j < L_truth or j > R_truth):
+                    correct3 += 1
+            
+            if (j > L_truth and j < R_truth):
+                    correct4 += 1
+        
+        print((1 - floors[len(floors) - 1]) * correct3 / width)
+        print((1 - floors[len(floors) - 1]) * correct4 / width)
+        
+        accuracy += (correct / w)
+        if (w2 != 0):
+            accuracy2 += (correct2 / w2)
+        
         
         # Save prediction image
         file_name = "{}/{}".format(output_dir, os.path.basename(path_list[i]))
         output_img2(Image.open(path_list[i]), Y, file_name)
+    
+    print(accuracy / len(path_list))
+    print(accuracy2 / len(path_list))
 
 
 def main():	
