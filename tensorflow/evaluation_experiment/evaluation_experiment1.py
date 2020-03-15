@@ -46,6 +46,97 @@ def load_img_debug(file_path):
     img = numpy.asarray(img, dtype="int32")
     
     return img
+    
+def load_img_balc(file_path):
+    img = Image.open(file_path)
+    img.load()
+    img = numpy.asarray(img, dtype="int32")
+
+    # Convert image to grayscale
+    r, g, b = img[:,:,0], img[:,:,1], img[:,:,2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    img[:,:,0] = gray
+    img[:,:,1] = gray
+    img[:,:,2] = gray
+
+    img = img.astype("float")
+    return img
+
+def load_imgs(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_floors = False, debug = False):
+    # Calculate number of images
+    num_images = 0
+    for file_path in path_list:
+        file_name = os.path.basename(file_path)
+        if use_augmentation:
+            if all_floors:
+                num_images += (int(len(params[file_name]) / 2) + 1) * augmentation_factor
+            else:
+                num_images += augmentation_factor
+        else:
+            if all_floors:
+                num_images += int(len(params[file_name]) / 2) + 1
+            else:
+                num_images += 1
+
+    X = numpy.zeros((num_images, WIDTH, HEIGHT, 3), dtype=float)
+    Y = numpy.zeros((num_images, 2), dtype=float)
+
+    # Load images
+    i = 0
+    for file_path in path_list:	
+        orig_img = load_img(file_path)
+        orig_height = orig_img.shape[0]
+        imgx = cv2.resize(orig_img, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        file_name = os.path.basename(file_path)
+        file_base, file_ext = os.path.splitext(file_path)
+        
+        values = sorted(params[file_name], reverse = True)
+        values.append(0.0)
+        values.append(0.0)
+        values.append(0.0)
+        values.append(0.0)
+
+        height = orig_height
+        for a in range(0, len(values) - 1, 4):
+            actual_floor = values[a] * orig_height / height
+            actual_Lbal = values[a + 1] * orig_height / height
+            actual_Sbal = values[a + 2] * orig_height / height
+            actual_window = values[a + 3] * orig_height / height
+            
+            if use_augmentation:
+                for j in range(augmentation_factor):
+                    img_tmp, adjusted_floor, adjusted_Lbal, adjusted_Sbal, adjusted_window = augmentation(imgx, actual_floor, actual_Lbal, actual_Sbal, actual_window)
+                    
+                    if debug:
+                        output_filename = "{}/{}.png".format(DEBUG_DIR, i)
+                        print(output_filename)
+                        output_img(img_tmp, adjusted_floor, adjusted_Lbal, adjusted_Sbal, adjusted_window, output_filename)
+                                        
+                    X[i,:,:,:] = standardize_img(img_tmp)
+                    Y[i, 0] = adjusted_Lbal
+                    Y[i, 1] = adjusted_Sbal
+                    i += 1
+            else:
+                X[i,:,:,:] = standardize_img(imgx)
+                Y[i, 0] = actual_Lbal
+                Y[i, 1] = actual_Sbal
+                i += 1
+
+            if not all_floors: break
+            
+            # Update image
+            if values[a] > 0:
+                height = int(orig_height * values[a + 3])
+                imgx = orig_img[0:height,:,:]
+                imgx = cv2.resize(imgx, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+            
+    if use_shuffle:
+        randomize = numpy.arange(len(X))
+        numpy.random.shuffle(randomize)
+        X = X[randomize]
+        Y = Y[randomize]
+
+    return X, Y
 
 def load_imgs_horiz(path_list, params, use_augmentation = False, augmentation_factor = 1, use_shuffle = False, all_floors = False, debug = False):
     # Calculate number of images
@@ -242,6 +333,24 @@ def load_annotation(file_path):
 			column_params[filename] = values
 		
 	return column_params
+    
+def load_annotation_balc(file_path):
+    floor_params = {}
+    file = open(file_path, "r")
+    while True:
+        filename = file.readline().strip()
+        if len(filename) == 0: break
+        
+        floors = file.readline().strip()
+        
+        values = []
+        data = floors.split(',')
+        if len(data) > 0:
+            for i in range(1, len(data)):
+                values.append(float(data[i].strip()))
+            floor_params[filename] = values
+            
+    return floor_params
 
 def load_annotation_floor(file_path):
     floor_params = {}
@@ -271,7 +380,7 @@ def test():
     params = load_annotation_horiz("floor_annotation.txt")
 
     # Split the tensor into train and test dataset
-    path_list = glob.glob("../../ECP/image_test/*.jpg")
+    path_list = glob.glob("../../ECP/images/*.jpg")
     X, Y = load_imgs_horiz(path_list, params, all_floors = all_floors)
           
     # Load the model
@@ -317,7 +426,7 @@ def test():
     floor_params = load_annotation_floor("floor_annotation_copy.txt")
 
     # Split the tensor into train and test dataset
-    path_list = glob.glob("../../ECP/image_test/*.jpg")
+    path_list = glob.glob("../../ECP/images/*.jpg")
     X, Y = load_imgs_vert(path_list, column_params, floor_params, all_columns = all_columns, debug = debug)
     
     # Load the model
@@ -374,11 +483,80 @@ def test():
         
         for i in range(len(column_params[img_tmp])):
             column_params[img_tmp][i] *= orig_width
+    
+    # Load parameters
+    params3 = load_annotation_balc("balcony_annotation.txt")
+
+    # Split the tensor into train and test dataset
+    #path_list = glob.glob("{}/*.jpg".format(input_dir))
+    X, Y = load_imgs(path_list, params3, all_floors = True)
+    
+    # Load the model
+    model = tf.keras.models.load_model("../balcony_experiment/models/balcony_experiment2_model.h5")
         
+    # Evaluation
+    model.evaluate(X, Y)
+
+    # Prediction
+    predictedY = model.predict(X).flatten()
+
+    # Write the prediction to a file
+    file = open("out/prediction.txt", "w")
+    for i in range(len(path_list)):
+        file_name = os.path.basename(path_list[i])
+        file.write("{},{}\n".format(file_name, predictedY[i]))
+    file.close()
+    
+    # Save the predicted images
+    Y = []
+    for i in range(len(path_list)):
+        img_tmp = os.path.split(path_list[i])[1]
+        print(path_list[i])
+        orig_x = load_img_balc(path_list[i])
+        orig_height = orig_x.shape[0]
+
+        x = cv2.resize(orig_x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+        height = orig_height
+        
+        # Repeatedly predict floors
+        why = []
+        a = 0
+        while True:		
+            # Prediction
+            X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
+            X[0,:,:,:] = standardize_img(x)
+            y_floor = params3[img_tmp][len(params3[img_tmp]) - 4 * a - 1]
+            y_Lbal = model.predict(X).flatten()[0]
+            y_Lbal = numpy.clip(y_Lbal * height / orig_height, a_min = 0, a_max = 1)
+            y_Sbal = model.predict(X).flatten()[1]
+            y_Sbal = numpy.clip(y_Sbal * height / orig_height, a_min = 0, a_max = 1)
+            y_window = params3[img_tmp][len(params3[img_tmp]) - 4 * a - 4]
+            if y_floor < 0.05: break
+            if y_Lbal < 0.05: break
+            if y_Sbal < 0.05: break
+            if y_window < 0.05: break
+            why.append(y_floor)
+            why.append(y_Lbal)
+            why.append(y_Sbal)
+            why.append(y_window)
+            
+            if not all_floors: break
+            
+            # Update image
+            height = int(orig_height * y_window)
+            x = orig_x[0:height,:,:]
+            x = cv2.resize(x, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_CUBIC)
+            
+            a = a + 1
+            
+        print(why)
+        Y.append(why)
+
+
+
     Y_horizontal_truth = params
     Y_vertical_truth = column_params
-    balcony = load_annotation_horiz("balcony_annotation.txt")
-    
+    #Y
     
     img_num = 0
     total_err = 0
@@ -388,10 +566,10 @@ def test():
         facade_error = 0
         orig_img = load_img(image)
         orig_height, orig_width, channels = orig_img.shape
-        #print(Y_horizontal[img_num])
-        #print(len(Y_horizontal[img_num]))
+        print(image)
         for a in range(0, len(Y_horizontal[img_num]), 2):
-            #print(a)
+            print(len(Y_horizontal[img_num]))
+            print(len(Y[img_num]))
             if (a >= len(Y_horizontal[img_num])):
                 break
                 
@@ -402,25 +580,27 @@ def test():
             window_top = Y_horizontal[img_num][a + 1]
             window_bot_truth = Y_horizontal_truth[img_tmp][a]
             window_top_truth = Y_horizontal_truth[img_tmp][a + 1]
-            Sbal_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 3] * orig_height
-            Lbal_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 2] * orig_height
-            floor_top = balcony[img_tmp][len(balcony[img_tmp]) - 2 * a - 1] * orig_height
+            Sbal_top = Y[img_num][2 * a + 2] * orig_height
+            Lbal_top = Y[img_num][2 * a + 1] * orig_height
+            print(window_bot)
+            print(Lbal_top)
+            print(Sbal_top)
+            print(window_top)
             
-            random_win = random.uniform(-3, 3)
-            random_Sbal = random.uniform(-3, 3)
-            random_Lbal = random.uniform(-3, 3)
+            if (Sbal_top < window_top):
+                Sbal_top = window_top
             
-            Sbal_top = Sbal_top + random_win
-            Lbal_top = Lbal_top + random_Sbal
-            floor_top = floor_top + random_Lbal
-            if (Lbal_top - Sbal_top < 0):
+            if (Sbal_top > window_bot):
+                Sbal_top = window_bot
+                
+            
+            if (Sbal_top > Lbal_top):
                 Lbal_top = Sbal_top
+                
+            if (Lbal_top > window_bot):
+                Lbal_top = window_bot
             
-            if (floor_top - Lbal_top < 0):
-                Lbal_top = floor_top
             
-            if (Lbal_top - Sbal_top < 0):
-                Sbal_top = Lbal_top
             
             for b in range(0, len(Y_vertical[img_num]), 2):
                 if (b >= len(Y_vertical[img_num])):
@@ -446,14 +626,14 @@ def test():
                 img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] / 4 * 3
                 
                 # Output predicted large balcony
-                img[int(Lbal_top):int(floor_top), 0:orig_width, 0] = numpy.ones((int(floor_top) - int(Lbal_top), orig_width)) * 255
-                img[int(Lbal_top):int(floor_top), 0:orig_width, 2] = img[int(Lbal_top):int(floor_top), 0:orig_width, 2]
-                img[int(Lbal_top):int(floor_top), 0:orig_width, 1] = img[int(Lbal_top):int(floor_top), 0:orig_width, 1]
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 0] = numpy.ones((int(window_bot) - int(Lbal_top), orig_width)) * 255
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 2] = img[int(Lbal_top):int(window_bot), 0:orig_width, 2]
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 1] = img[int(Lbal_top):int(window_bot), 0:orig_width, 1]
                 
                 union = 0
                 for c in range(int(window_top_truth), int(window_bot_truth)):
                     for d in range(int(window_right_truth), int(window_left_truth)):
-                        if (c > window_top and c < window_bot and d > window_left and d < window_right):
+                        if (c > window_top and c <= window_bot and d > window_left and d <= window_right):
                             union += 1
                 
                 facade_error += ((window_bot - window_top) * (window_right - window_left) + (window_bot_truth - window_top_truth) * (window_right_truth - window_left_truth) - 2 * union)
