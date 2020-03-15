@@ -281,12 +281,16 @@ def test(input_dir, model_dir, all_floors, output_dir):
             # Prediction
             X = numpy.zeros((1, WIDTH, HEIGHT, 3), dtype=float)
             X[0,:,:,:] = standardize_img(x)
-            y_floor = numpy.clip(params[img_tmp][len(params[img_tmp]) - 4 * a - 1] * height / orig_height, a_min = 0, a_max = 1)
+            y_floor = numpy.clip(params[img_tmp][len(params[img_tmp]) - 2 * a - 1] * height / orig_height, a_min = 0, a_max = 1)
             y_Lbal = model.predict(X).flatten()[0]
             y_Lbal = numpy.clip(y_Lbal * height / orig_height, a_min = 0, a_max = 1)
             y_Sbal = model.predict(X).flatten()[1]
             y_Sbal = numpy.clip(y_Sbal * height / orig_height, a_min = 0, a_max = 1)
-            y_window = numpy.clip(params[img_tmp][len(params[img_tmp]) - 4 * a - 4] * height / orig_height, a_min = 0, a_max = 1)
+            y_window = numpy.clip(params[img_tmp][len(params[img_tmp]) - 2 * a - 2] * height / orig_height, a_min = 0, a_max = 1)
+            print(y_floor)
+            print(y_Lbal)
+            print(y_Sbal)
+            print(y_window)
             if y_floor < 0.05: break
             if y_Lbal < 0.05: break
             if y_Sbal < 0.05: break
