@@ -614,19 +614,19 @@ def test():
                 
                 
                 # Output predicted window
-                #img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 2] = numpy.ones((int(Sbal_top) - int(window_top), int(window_right) - int(window_left))) * 255
-                #img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] / 2
-                #img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] / 2
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 2] = numpy.ones((int(Sbal_top) - int(window_top), int(window_right) - int(window_left))) * 255
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 1] / 2
+                img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] = img[int(window_top):int(Sbal_top), int(window_left):int(window_right), 0] / 2
                 
                 # Output predicted small balcony
-                #img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 1] = numpy.ones((int(Lbal_top) - int(Sbal_top), int(window_right) - int(window_left))) * 255
-                #img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] / 4 * 3
-                #img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] / 4 * 3
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 1] = numpy.ones((int(Lbal_top) - int(Sbal_top), int(window_right) - int(window_left))) * 255
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 2] / 4 * 3
+                img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] = img[int(Sbal_top):int(Lbal_top), int(window_left):int(window_right), 0] / 4 * 3
                 
                 # Output predicted large balcony
-                #img[int(Lbal_top):int(window_bot), 0:orig_width, 0] = numpy.ones((int(window_bot) - int(Lbal_top), orig_width)) * 255
-                #img[int(Lbal_top):int(window_bot), 0:orig_width, 2] = img[int(Lbal_top):int(window_bot), 0:orig_width, 2]
-                #img[int(Lbal_top):int(window_bot), 0:orig_width, 1] = img[int(Lbal_top):int(window_bot), 0:orig_width, 1]
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 0] = numpy.ones((int(window_bot) - int(Lbal_top), orig_width)) * 255
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 2] = img[int(Lbal_top):int(window_bot), 0:orig_width, 2]
+                img[int(Lbal_top):int(window_bot), 0:orig_width, 1] = img[int(Lbal_top):int(window_bot), 0:orig_width, 1]
                 
                 union = 0
                 for c in range(int(window_top_truth), int(window_bot_truth)):
